@@ -1,4 +1,4 @@
-from shapely._geometry import Geometry, GeometryType
+from shapely._geometry import Geometry
 from shapely.geometry import Point, LineString, MultiLineString, MultiPoint, Polygon, GeometryCollection, LinearRing
 from shapely.linear import line_merge as _line_merge, shared_paths as _shared_paths
 from shapely.set_operations import unary_union as _unary_union, intersection as _poly_intersection
@@ -12,20 +12,20 @@ fn linemerge(lines) -> Geometry:
 fn polygonize(lines) -> GeometryCollection:
     # Collect all LineStrings from input
     var lns = List[LineString]()
-    let t = lines.__type_name__()
+    var t = lines.__type_name__()
     if t == "LineString":
-        lns.push_back(unsafe_bitcast[LineString](lines))
+        lns.append(unsafe_bitcast[LineString](lines))
     elif t == "MultiLineString":
-        let mls = unsafe_bitcast[MultiLineString](lines)
-        for ln in mls.lines: lns.push_back(ln)
+        var mls = unsafe_bitcast[MultiLineString](lines)
+        for ln in mls.lines: lns.append(ln)
     elif t == "GeometryCollection":
-        let gc = unsafe_bitcast[GeometryCollection](lines)
+        var gc = unsafe_bitcast[GeometryCollection](lines)
         for g in gc.geoms:
-            let tg = g.__type_name__()
-            if tg == "LineString": lns.push_back(unsafe_bitcast[LineString](g))
+            var tg = g.__type_name__()
+            if tg == "LineString": lns.append(unsafe_bitcast[LineString](g))
             elif tg == "MultiLineString":
-                let mls2 = unsafe_bitcast[MultiLineString](g)
-                for ln in mls2.lines: lns.push_back(ln)
+                var mls2 = unsafe_bitcast[MultiLineString](g)
+                for ln in mls2.lines: lns.append(ln)
 
     struct Seg:
         var ax: Float64
@@ -33,7 +33,7 @@ fn polygonize(lines) -> GeometryCollection:
         var bx: Float64
         var by: Float64
         var ts: List[Float64]
-        fn __init__(inout self, ax: Float64, ay: Float64, bx: Float64, by: Float64):
+        fn __init__(self, ax: Float64, ay: Float64, bx: Float64, by: Float64):
             self.ax = ax; self.ay = ay; self.bx = bx; self.by = by
             self.ts = [0.0, 1.0]
 
@@ -42,9 +42,9 @@ fn polygonize(lines) -> GeometryCollection:
         if ln.coords.size() < 2: continue
         var i = 0
         while i < ln.coords.size() - 1:
-            let a = ln.coords[i]
-            let b = ln.coords[i + 1]
-            segs.push_back(Seg(a[0], a[1], b[0], b[1]))
+            var a = ln.coords[i]
+            var b = ln.coords[i + 1]
+            segs.append(Seg(a[0], a[1], b[0], b[1]))
             i += 1
 
     # split segments at intersections
@@ -52,12 +52,12 @@ fn polygonize(lines) -> GeometryCollection:
     while i < segs.size():
         var j = i + 1
         while j < segs.size():
-            let pts = segment_intersections((segs[i].ax, segs[i].ay), (segs[i].bx, segs[i].by), (segs[j].ax, segs[j].ay), (segs[j].bx, segs[j].by))
+            var pts = segment_intersections((segs[i].ax, segs[i].ay), (segs[i].bx, segs[i].by), (segs[j].ax, segs[j].ay), (segs[j].bx, segs[j].by))
             for P in pts:
-                let ti = P[2]
-                let tj = P[3]
-                if ti > 0.0 and ti < 1.0: segs[i].ts.push_back(ti)
-                if tj > 0.0 and tj < 1.0: segs[j].ts.push_back(tj)
+                var ti = P[2]
+                var tj = P[3]
+                if ti > 0.0 and ti < 1.0: segs[i].ts.append(ti)
+                if tj > 0.0 and tj < 1.0: segs[j].ts.append(tj)
             j += 1
         i += 1
 
@@ -74,20 +74,20 @@ fn polygonize(lines) -> GeometryCollection:
         if x < 0.0: return -x
         return x
 
-    fn get_vid(x: Float64, y: Float64, inout verts: List[Tuple[Float64, Float64]], eps: Float64 = 1e-12) -> Int32:
+    fn get_vid(x: Float64, y: Float64, verts: List[Tuple[Float64, Float64]], eps: Float64 = 1e-12) -> Int32:
         var k = 0
         while k < verts.size():
-            let v = verts[k]
+            var v = verts[k]
             if absf(v[0] - x) <= eps and absf(v[1] - y) <= eps: return k as Int32
             k += 1
-        verts.push_back((x, y))
+        verts.append((x, y))
         return (verts.size() - 1) as Int32
 
     var verts = List[Tuple[Float64, Float64]]()
     var edges = List[DEdge]()
     var adj = List[List[Int32]]()
-    fn ensure_adj(inout adj: List[List[Int32]], vid: Int32):
-        while adj.size() <= (vid as Int): adj.push_back(List[Int32]())
+    fn ensure_adj(adj: List[List[Int32]], vid: Int32):
+        while adj.size() <= (vid as Int): adj.append(List[Int32]())
 
     # helper: sort ts and emit pieces
     var sidx = 0
@@ -105,26 +105,26 @@ fn polygonize(lines) -> GeometryCollection:
             a += 1
         var m = 0
         while m < ts.size() - 1:
-            let t0 = ts[m]
-            let t1 = ts[m + 1]
+            var t0 = ts[m]
+            var t1 = ts[m + 1]
             if t1 - t0 > 1e-12:
-                let ax = segs[sidx].ax + (segs[sidx].bx - segs[sidx].ax) * t0
-                let ay = segs[sidx].ay + (segs[sidx].by - segs[sidx].ay) * t0
-                let bx = segs[sidx].ax + (segs[sidx].bx - segs[sidx].ax) * t1
-                let by = segs[sidx].ay + (segs[sidx].by - segs[sidx].ay) * t1
-                let s_id = get_vid(ax, ay, verts)
-                let d_id = get_vid(bx, by, verts)
+                var ax = segs[sidx].ax + (segs[sidx].bx - segs[sidx].ax) * t0
+                var ay = segs[sidx].ay + (segs[sidx].by - segs[sidx].ay) * t0
+                var bx = segs[sidx].ax + (segs[sidx].bx - segs[sidx].ax) * t1
+                var by = segs[sidx].ay + (segs[sidx].by - segs[sidx].ay) * t1
+                var s_id = get_vid(ax, ay, verts)
+                var d_id = get_vid(bx, by, verts)
                 ensure_adj(adj, s_id)
                 ensure_adj(adj, d_id)
-                let dx = bx - ax
-                let dy = by - ay
-                let ei = edges.size() as Int32
-                edges.push_back(DEdge(s_id, d_id, dx, dy, True, False))
-                adj[s_id].push_back(ei)
+                var dx = bx - ax
+                var dy = by - ay
+                var ei = edges.size() as Int32
+                edges.append(DEdge(s_id, d_id, dx, dy, True, False))
+                adj[s_id].append(ei)
                 # add reverse too to allow traversal both ways
-                let eri = edges.size() as Int32
-                edges.push_back(DEdge(d_id, s_id, -dx, -dy, True, False))
-                adj[d_id].push_back(eri)
+                var eri = edges.size() as Int32
+                edges.append(DEdge(d_id, s_id, -dx, -dy, True, False))
+                adj[d_id].append(eri)
             m += 1
         sidx += 1
 
@@ -132,7 +132,7 @@ fn polygonize(lines) -> GeometryCollection:
     var deg = List[Int32]()
     var v = 0
     while v < adj.size():
-        deg.push_back(adj[v].size() as Int32)
+        deg.append(adj[v].size() as Int32)
         v += 1
     var changed = True
     while changed:
@@ -143,11 +143,11 @@ fn polygonize(lines) -> GeometryCollection:
                 # remove all edges from this vertex
                 var p = 0
                 while p < adj[vi].size():
-                    let eidx = adj[vi][p]
+                    var eidx = adj[vi][p]
                     if edges[eidx].alive:
                         edges[eidx].alive = False
                         deg[vi] -= 1
-                        let to = edges[eidx].dst
+                        var to = edges[eidx].dst
                         # remove back edge degree; we won't search reverse adjacency for exact back edge index, just decrement degree
                         if deg[to] > 0: deg[to] -= 1
                         changed = True
@@ -161,17 +161,17 @@ fn polygonize(lines) -> GeometryCollection:
         var best_cross = -1.0e308
         var best_dot = -1.0e308
         if (at_vertex as Int) >= adj.size(): return -1
-        let cand = adj[at_vertex]
+        var cand = adj[at_vertex]
         var i = 0
         while i < cand.size():
-            let ei = cand[i]
+            var ei = cand[i]
             if not edges[ei].alive or edges[ei].used:
                 i += 1
                 continue
-            let w_x = edges[ei].dx
-            let w_y = edges[ei].dy
-            let cr = bx * w_y - by * w_x
-            let dt = bx * w_x + by * w_y
+            var w_x = edges[ei].dx
+            var w_y = edges[ei].dy
+            var cr = bx * w_y - by * w_x
+            var dt = bx * w_x + by * w_y
             if cr > 0.0:
                 if best_idx == -1 or best_cross < 0.0 or dt > best_dot:
                     best_idx = ei
@@ -194,57 +194,57 @@ fn polygonize(lines) -> GeometryCollection:
         var ring = List[Tuple[Float64, Float64]]()
         var start_e = e as Int32
         var cur_e = start_e
-        let sx = verts[edges[cur_e].src][0]
-        let sy = verts[edges[cur_e].src][1]
+        var sx = verts[edges[cur_e].src][0]
+        var sy = verts[edges[cur_e].src][1]
         var bx = -edges[cur_e].dx
         var by = -edges[cur_e].dy
         while True:
             edges[cur_e].used = True
-            let vsrc = edges[cur_e].src
-            ring.push_back((verts[vsrc][0], verts[vsrc][1]))
-            let vdst = edges[cur_e].dst
-            let ne = next_edge(vdst, bx, by)
+            var vsrc = edges[cur_e].src
+            ring.append((verts[vsrc][0], verts[vsrc][1]))
+            var vdst = edges[cur_e].dst
+            var ne = next_edge(vdst, bx, by)
             if ne == -1:
                 break
             bx = -edges[ne].dx
             by = -edges[ne].dy
             if ne == start_e:
-                ring.push_back((verts[edges[ne].src][0], verts[edges[ne].src][1]))
+                ring.append((verts[edges[ne].src][0], verts[edges[ne].src][1]))
                 break
             cur_e = ne
         if ring.size() >= 4:
-            rings.push_back(ring)
+            rings.append(ring)
         e += 1
 
     # assemble polygons from rings
     var shells = List[LinearRing]()
     var holes = List[LinearRing]()
     for r in rings:
-        let area = signed_area_coords(r)
+        var area = signed_area_coords(r)
         if area > 0.0:
-            shells.push_back(LinearRing(r))
+            shells.append(LinearRing(r))
         else:
-            holes.push_back(LinearRing(r))
+            holes.append(LinearRing(r))
 
     var polys = List[Polygon]()
     var used_hole = List[Bool]()
-    for _ in holes: used_hole.push_back(False)
+    for _ in holes: used_hole.append(False)
     var si = 0
     while si < shells.size():
-        let sh = shells[si]
+        var sh = shells[si]
         var sh_holes = List[LinearRing]()
         var hi = 0
         while hi < holes.size():
             if not used_hole[hi]:
-                let hr = holes[hi]
+                var hr = holes[hi]
                 if hr.coords.size() > 0:
-                    let pt = hr.coords[0]
-                    let inside = point_in_ring(Point(pt[0], pt[1]), sh) != 0
+                    var pt = hr.coords[0]
+                    var inside = point_in_ring(Point(pt[0], pt[1]), sh) != 0
                     if inside:
-                        sh_holes.push_back(hr)
+                        sh_holes.append(hr)
                         used_hole[hi] = True
             hi += 1
-        polys.push_back(Polygon(sh, sh_holes))
+        polys.append(Polygon(sh, sh_holes))
         si += 1
     return GeometryCollection(polys)
 
@@ -252,20 +252,20 @@ fn polygonize(lines) -> GeometryCollection:
 fn polygonize_full(lines: Geometry) -> (GeometryCollection, MultiLineString, MultiLineString, MultiLineString):
     # Collect all LineStrings from input
     var lns = List[LineString]()
-    let t = lines.__type_name__()
+    var t = lines.__type_name__()
     if t == "LineString":
-        lns.push_back(unsafe_bitcast[LineString](lines))
+        lns.append(unsafe_bitcast[LineString](lines))
     elif t == "MultiLineString":
-        let mls_in = unsafe_bitcast[MultiLineString](lines)
-        for ln in mls_in.lines: lns.push_back(ln)
+        var mls_in = unsafe_bitcast[MultiLineString](lines)
+        for ln in mls_in.lines: lns.append(ln)
     elif t == "GeometryCollection":
-        let gc = unsafe_bitcast[GeometryCollection](lines)
+        var gc = unsafe_bitcast[GeometryCollection](lines)
         for g in gc.geoms:
-            let tg = g.__type_name__()
-            if tg == "LineString": lns.push_back(unsafe_bitcast[LineString](g))
+            var tg = g.__type_name__()
+            if tg == "LineString": lns.append(unsafe_bitcast[LineString](g))
             elif tg == "MultiLineString":
-                let mls2 = unsafe_bitcast[MultiLineString](g)
-                for ln in mls2.lines: lns.push_back(ln)
+                var mls2 = unsafe_bitcast[MultiLineString](g)
+                for ln in mls2.lines: lns.append(ln)
 
     struct Seg:
         var ax: Float64
@@ -273,7 +273,7 @@ fn polygonize_full(lines: Geometry) -> (GeometryCollection, MultiLineString, Mul
         var bx: Float64
         var by: Float64
         var ts: List[Float64]
-        fn __init__(inout self, ax: Float64, ay: Float64, bx: Float64, by: Float64):
+        fn __init__(self, ax: Float64, ay: Float64, bx: Float64, by: Float64):
             self.ax = ax; self.ay = ay; self.bx = bx; self.by = by
             self.ts = [0.0, 1.0]
 
@@ -282,9 +282,9 @@ fn polygonize_full(lines: Geometry) -> (GeometryCollection, MultiLineString, Mul
         if ln.coords.size() < 2: continue
         var i = 0
         while i < ln.coords.size() - 1:
-            let a = ln.coords[i]
-            let b = ln.coords[i + 1]
-            segs.push_back(Seg(a[0], a[1], b[0], b[1]))
+            var a = ln.coords[i]
+            var b = ln.coords[i + 1]
+            segs.append(Seg(a[0], a[1], b[0], b[1]))
             i += 1
 
     # split segments at intersections
@@ -292,12 +292,12 @@ fn polygonize_full(lines: Geometry) -> (GeometryCollection, MultiLineString, Mul
     while si < segs.size():
         var sj = si + 1
         while sj < segs.size():
-            let pts = segment_intersections((segs[si].ax, segs[si].ay), (segs[si].bx, segs[si].by), (segs[sj].ax, segs[sj].ay), (segs[sj].bx, segs[sj].by))
+            var pts = segment_intersections((segs[si].ax, segs[si].ay), (segs[si].bx, segs[si].by), (segs[sj].ax, segs[sj].ay), (segs[sj].bx, segs[sj].by))
             for P in pts:
-                let ti = P[2]
-                let tj = P[3]
-                if ti > 0.0 and ti < 1.0: segs[si].ts.push_back(ti)
-                if tj > 0.0 and tj < 1.0: segs[sj].ts.push_back(tj)
+                var ti = P[2]
+                var tj = P[3]
+                if ti > 0.0 and ti < 1.0: segs[si].ts.append(ti)
+                if tj > 0.0 and tj < 1.0: segs[sj].ts.append(tj)
             sj += 1
         si += 1
 
@@ -314,20 +314,20 @@ fn polygonize_full(lines: Geometry) -> (GeometryCollection, MultiLineString, Mul
         if x < 0.0: return -x
         return x
 
-    fn get_vid(x: Float64, y: Float64, inout verts: List[Tuple[Float64, Float64]], eps: Float64 = 1e-12) -> Int32:
+    fn get_vid(x: Float64, y: Float64, verts: List[Tuple[Float64, Float64]], eps: Float64 = 1e-12) -> Int32:
         var k = 0
         while k < verts.size():
-            let v = verts[k]
+            var v = verts[k]
             if absf(v[0] - x) <= eps and absf(v[1] - y) <= eps: return k as Int32
             k += 1
-        verts.push_back((x, y))
+        verts.append((x, y))
         return (verts.size() - 1) as Int32
 
     var verts = List[Tuple[Float64, Float64]]()
     var edges = List[DEdge]()
     var adj = List[List[Int32]]()
-    fn ensure_adj(inout adj: List[List[Int32]], vid: Int32):
-        while adj.size() <= (vid as Int): adj.push_back(List[Int32]())
+    fn ensure_adj(adj: List[List[Int32]], vid: Int32):
+        while adj.size() <= (vid as Int): adj.append(List[Int32]())
 
     # helper: sort ts and emit pieces
     var sidx = 0
@@ -345,26 +345,26 @@ fn polygonize_full(lines: Geometry) -> (GeometryCollection, MultiLineString, Mul
             a += 1
         var m = 0
         while m < ts.size() - 1:
-            let t0 = ts[m]
-            let t1 = ts[m + 1]
+            var t0 = ts[m]
+            var t1 = ts[m + 1]
             if t1 - t0 > 1e-12:
-                let ax = segs[sidx].ax + (segs[sidx].bx - segs[sidx].ax) * t0
-                let ay = segs[sidx].ay + (segs[sidx].by - segs[sidx].ay) * t0
-                let bx = segs[sidx].ax + (segs[sidx].bx - segs[sidx].ax) * t1
-                let by = segs[sidx].ay + (segs[sidx].by - segs[sidx].ay) * t1
-                let s_id = get_vid(ax, ay, verts)
-                let d_id = get_vid(bx, by, verts)
+                var ax = segs[sidx].ax + (segs[sidx].bx - segs[sidx].ax) * t0
+                var ay = segs[sidx].ay + (segs[sidx].by - segs[sidx].ay) * t0
+                var bx = segs[sidx].ax + (segs[sidx].bx - segs[sidx].ax) * t1
+                var by = segs[sidx].ay + (segs[sidx].by - segs[sidx].ay) * t1
+                var s_id = get_vid(ax, ay, verts)
+                var d_id = get_vid(bx, by, verts)
                 ensure_adj(adj, s_id)
                 ensure_adj(adj, d_id)
-                let dx = bx - ax
-                let dy = by - ay
-                let ei = edges.size() as Int32
-                edges.push_back(DEdge(s_id, d_id, dx, dy, True, False))
-                adj[s_id].push_back(ei)
+                var dx = bx - ax
+                var dy = by - ay
+                var ei = edges.size() as Int32
+                edges.append(DEdge(s_id, d_id, dx, dy, True, False))
+                adj[s_id].append(ei)
                 # add reverse too
-                let eri = edges.size() as Int32
-                edges.push_back(DEdge(d_id, s_id, -dx, -dy, True, False))
-                adj[d_id].push_back(eri)
+                var eri = edges.size() as Int32
+                edges.append(DEdge(d_id, s_id, -dx, -dy, True, False))
+                adj[d_id].append(eri)
             m += 1
         sidx += 1
 
@@ -372,15 +372,15 @@ fn polygonize_full(lines: Geometry) -> (GeometryCollection, MultiLineString, Mul
     var deg = List[Int32]()
     var v = 0
     while v < adj.size():
-        deg.push_back(adj[v].size() as Int32)
+        deg.append(adj[v].size() as Int32)
         v += 1
 
     # collect dangles (undirected unique edges incident to degree-1 vertices)
-    fn add_unique_edge(a: Int32, b: Int32, inout seen: List[Tuple[Int32, Int32]], inout out_lines: List[LineString]):
+    fn add_unique_edge(a: Int32, b: Int32, seen: List[Tuple[Int32, Int32]], out_lines: List[LineString]):
         var u0 = a
         var u1 = b
         if u1 < u0:
-            let tmp = u0
+            var tmp = u0
             u0 = u1
             u1 = tmp
         var found = False
@@ -391,14 +391,14 @@ fn polygonize_full(lines: Geometry) -> (GeometryCollection, MultiLineString, Mul
                 break
             i += 1
         if not found:
-            seen.push_back((u0, u1))
-            out_lines.push_back(LineString([(verts[u0][0], verts[u0][1]), (verts[u1][0], verts[u1][1])]))
+            seen.append((u0, u1))
+            out_lines.append(LineString([(verts[u0][0], verts[u0][1]), (verts[u1][0], verts[u1][1])]))
 
     var dangles_seen = List[Tuple[Int32, Int32]]()
     var dangle_lines = List[LineString]()
     var ei = 0
     while ei < edges.size():
-        let e = edges[ei]
+        var e = edges[ei]
         if deg.size() > 0:
             if deg[e.src] == 1 or deg[e.dst] == 1:
                 add_unique_edge(e.src, e.dst, dangles_seen, dangle_lines)
@@ -430,17 +430,17 @@ fn polygonize_full(lines: Geometry) -> (GeometryCollection, MultiLineString, Mul
         var best_cross = -1.0e308
         var best_dot = -1.0e308
         if (at_vertex as Int) >= adj.size(): return -1
-        let cand = adj[at_vertex]
+        var cand = adj[at_vertex]
         var i2 = 0
         while i2 < cand.size():
-            let ei2 = cand[i2]
+            var ei2 = cand[i2]
             if not edges[ei2].alive or edges[ei2].used:
                 i2 += 1
                 continue
-            let w_x = edges[ei2].dx
-            let w_y = edges[ei2].dy
-            let cr = bx * w_y - by * w_x
-            let dt = bx * w_x + by * w_y
+            var w_x = edges[ei2].dx
+            var w_y = edges[ei2].dy
+            var cr = bx * w_y - by * w_x
+            var dt = bx * w_x + by * w_y
             if cr > 0.0:
                 if best_idx == -1 or best_cross < 0.0 or dt > best_dot:
                     best_idx = ei2
@@ -463,57 +463,57 @@ fn polygonize_full(lines: Geometry) -> (GeometryCollection, MultiLineString, Mul
         var ring = List[Tuple[Float64, Float64]]()
         var start_e = e2 as Int32
         var cur_e = start_e
-        let sx = verts[edges[cur_e].src][0]
-        let sy = verts[edges[cur_e].src][1]
+        var sx = verts[edges[cur_e].src][0]
+        var sy = verts[edges[cur_e].src][1]
         var bx = -edges[cur_e].dx
         var by = -edges[cur_e].dy
         while True:
             edges[cur_e].used = True
-            let vsrc = edges[cur_e].src
-            ring.push_back((verts[vsrc][0], verts[vsrc][1]))
-            let vdst = edges[cur_e].dst
-            let ne = next_edge(vdst, bx, by)
+            var vsrc = edges[cur_e].src
+            ring.append((verts[vsrc][0], verts[vsrc][1]))
+            var vdst = edges[cur_e].dst
+            var ne = next_edge(vdst, bx, by)
             if ne == -1:
                 break
             bx = -edges[ne].dx
             by = -edges[ne].dy
             if ne == start_e:
-                ring.push_back((verts[edges[ne].src][0], verts[edges[ne].src][1]))
+                ring.append((verts[edges[ne].src][0], verts[edges[ne].src][1]))
                 break
             cur_e = ne
         if ring.size() >= 4:
-            rings.push_back(ring)
+            rings.append(ring)
         e2 += 1
 
     # assemble polygons from rings (same as polygonize)
     var shells = List[LinearRing]()
     var holes = List[LinearRing]()
     for r in rings:
-        let area = signed_area_coords(r)
+        var area = signed_area_coords(r)
         if area > 0.0:
-            shells.push_back(LinearRing(r))
+            shells.append(LinearRing(r))
         else:
-            holes.push_back(LinearRing(r))
+            holes.append(LinearRing(r))
 
     var polys = List[Polygon]()
     var used_hole = List[Bool]()
-    for _ in holes: used_hole.push_back(False)
+    for _ in holes: used_hole.append(False)
     var si2 = 0
     while si2 < shells.size():
-        let sh = shells[si2]
+        var sh = shells[si2]
         var sh_holes = List[LinearRing]()
         var hi2 = 0
         while hi2 < holes.size():
             if not used_hole[hi2]:
-                let hr = holes[hi2]
+                var hr = holes[hi2]
                 if hr.coords.size() > 0:
-                    let pt = hr.coords[0]
-                    let inside = point_in_ring(Point(pt[0], pt[1]), sh) != 0
+                    var pt = hr.coords[0]
+                    var inside = point_in_ring(Point(pt[0], pt[1]), sh) != 0
                     if inside:
-                        sh_holes.push_back(hr)
+                        sh_holes.append(hr)
                         used_hole[hi2] = True
             hi2 += 1
-        polys.push_back(Polygon(sh, sh_holes))
+        polys.append(Polygon(sh, sh_holes))
         si2 += 1
 
     # classify remaining edges as cut-edges (alive but not used)
@@ -525,10 +525,10 @@ fn polygonize_full(lines: Geometry) -> (GeometryCollection, MultiLineString, Mul
             add_unique_edge(edges[ce].src, edges[ce].dst, cut_seen, cut_lines)
         ce += 1
 
-    let polygons_gc = GeometryCollection(polys)
-    let dangles_mls = MultiLineString(dangle_lines)
-    let cut_mls = MultiLineString(cut_lines)
-    let invalid_rings = MultiLineString([])
+    var polygons_gc = GeometryCollection(polys)
+    var dangles_mls = MultiLineString(dangle_lines)
+    var cut_mls = MultiLineString(cut_lines)
+    var invalid_rings = MultiLineString([])
     return (polygons_gc, dangles_mls, cut_mls, invalid_rings)
 
 
@@ -664,23 +664,23 @@ fn clip_by_rect(ls: LineString, xmin: Float64, ymin: Float64, xmax: Float64, yma
         if ok:
             # start a new part if current is empty or discontinuous from previous end
             if current.size() == 0:
-                current.push_back((x0, y0))
-                current.push_back((x1, y1))
+                current.append((x0, y0))
+                current.append((x1, y1))
             else:
                 let last = current[current.size() - 1]
                 if last[0] == x0 and last[1] == y0:
-                    current.push_back((x1, y1))
+                    current.append((x1, y1))
                 else:
-                    lines.push_back(current)
+                    lines.append(current)
                     current = List[Tuple[Float64, Float64]]()
-                    current.push_back((x0, y0))
-                    current.push_back((x1, y1))
+                    current.append((x0, y0))
+                    current.append((x1, y1))
         else:
             if current.size() > 0:
-                lines.push_back(current)
+                lines.append(current)
                 current = List[Tuple[Float64, Float64]]()
     if current.size() > 0:
-        lines.push_back(current)
+        lines.append(current)
 
     if lines.size() == 0:
         return LineString([])
@@ -688,7 +688,7 @@ fn clip_by_rect(ls: LineString, xmin: Float64, ymin: Float64, xmax: Float64, yma
         return LineString(lines[0])
     var mls = List[LineString]()
     for part in lines:
-        mls.push_back(LineString(part))
+        mls.append(LineString(part))
     return MultiLineString(mls)
 
 
@@ -711,7 +711,7 @@ fn orient(poly: Polygon, sign: Float64 = 1.0) -> Polygon:
         var out = List[Tuple[Float64, Float64]]()
         var i = coords.size() - 1
         while True:
-            out.push_back(coords[i])
+            out.append(coords[i])
             if i == 0: break
             i -= 1
         return out
@@ -721,7 +721,7 @@ fn orient(poly: Polygon, sign: Float64 = 1.0) -> Polygon:
     var new_holes = List[LinearRing]()
     for h in poly.holes:
         let hole_pos = not want_shell_pos
-        new_holes.push_back(LinearRing(ensure_orient(h.coords, hole_pos)))
+        new_holes.append(LinearRing(ensure_orient(h.coords, hole_pos)))
     return Polygon(new_shell, new_holes)
 
 
@@ -732,7 +732,7 @@ fn orient(geom: Geometry, _sign: Float64 = 1.0) -> Geometry:
 fn orient(mpoly: MultiPolygon, sign: Float64 = 1.0) -> MultiPolygon:
     var new_polys = List[Polygon]()
     for p in mpoly.polys:
-        new_polys.push_back(orient(p, sign))
+        new_polys.append(orient(p, sign))
     return MultiPolygon(new_polys)
 
 
@@ -756,19 +756,19 @@ fn split(ls: LineString, pt: Point) -> GeometryCollection:
     var right = List[Tuple[Float64, Float64]]()
     # left: from start to idx, then pt
     for i in range(0, idx + 1):
-        left.push_back(ls.coords[i])
+        left.append(ls.coords[i])
     if left.size() == 0 or left[left.size() - 1][0] != pt.x or left[left.size() - 1][1] != pt.y:
-        left.push_back((pt.x, pt.y))
+        left.append((pt.x, pt.y))
     # right: start from pt to end
     if ls.coords[idx + 1][0] != pt.x or ls.coords[idx + 1][1] != pt.y:
-        right.push_back((pt.x, pt.y))
+        right.append((pt.x, pt.y))
     for i in range(idx + 1, ls.coords.size()):
-        right.push_back(ls.coords[i])
+        right.append(ls.coords[i])
     var parts = List[Geometry]()
     if left.size() >= 2:
-        parts.push_back(LineString(left))
+        parts.append(LineString(left))
     if right.size() >= 2:
-        parts.push_back(LineString(right))
+        parts.append(LineString(right))
     if parts.size() == 0:
         return GeometryCollection([ls])
     return GeometryCollection(parts)
@@ -835,12 +835,12 @@ fn substring(geom: LineString, start_dist: Float64, end_dist: Float64, normalize
             let t = if seg == 0.0 { 0.0 } else { (s - acc) / seg }
             let sx = a[0] + t * dx
             let sy = a[1] + t * dy
-            out.push_back((sx, sy))
+            out.append((sx, sy))
             # continue adding intermediate vertices until reaching end
             var here = acc + seg
             # add endpoints within (s, e)
             if here < e:
-                out.push_back((b[0], b[1]))
+                out.append((b[0], b[1]))
             # add subsequent segments fully until overshoot
             var j = i + 1
             while j < geom.coords.size() - 1 and here < e:
@@ -850,14 +850,14 @@ fn substring(geom: LineString, start_dist: Float64, end_dist: Float64, normalize
                 let ndy = nb[1] - na[1]
                 let nseg = sqrt_f64(ndx * ndx + ndy * ndy)
                 if here + nseg <= e:
-                    out.push_back((nb[0], nb[1]))
+                    out.append((nb[0], nb[1]))
                     here += nseg
                     j += 1
                 else:
                     let tt = if nseg == 0.0 { 0.0 } else { (e - here) / nseg }
                     let ex = na[0] + tt * ndx
                     let ey = na[1] + tt * ndy
-                    out.push_back((ex, ey))
+                    out.append((ex, ey))
                     here = e
                     break
             break
@@ -865,14 +865,14 @@ fn substring(geom: LineString, start_dist: Float64, end_dist: Float64, normalize
 
     if out.size() == 0:
         # start beyond total length after clamping -> return single endpoint at end
-        out.push_back((geom.coords[geom.coords.size() - 1][0], geom.coords[geom.coords.size() - 1][1]))
+        out.append((geom.coords[geom.coords.size() - 1][0], geom.coords[geom.coords.size() - 1][1]))
 
     if reverse:
         # reverse coordinate order
         var rev = List[Tuple[Float64, Float64]]()
         var k = out.size() - 1
         while True:
-            rev.push_back(out[k])
+            rev.append(out[k])
             if k == 0: break
             k -= 1
         out = rev
@@ -907,7 +907,7 @@ fn triangulate(_geom: Geometry, _tolerance: Float64 = 0.0, _edges: Bool = False)
     return GeometryCollection([])
 
 
-fn voronoi_diagram(_geom: Geometry, _envelope: Geometry = Geometry(GeometryType.MISSING), _tolerance: Float64 = 0.0, _edges: Bool = False) -> GeometryCollection:
+fn voronoi_diagram(_geom: Geometry, _envelope: Geometry = Geometry(), _tolerance: Float64 = 0.0, _edges: Bool = False) -> GeometryCollection:
     return GeometryCollection([])
 
 

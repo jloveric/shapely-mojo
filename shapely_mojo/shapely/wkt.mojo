@@ -21,7 +21,7 @@ fn _parse_ring(body: String) -> LinearRing:
         let trimmed = seg.strip()
         let xy = trimmed.split(" ")
         if xy.size() >= 2:
-            coords.push_back((xy[0].to_float64(), xy[1].to_float64()))
+            coords.append((xy[0].to_float64(), xy[1].to_float64()))
     return LinearRing(coords)
 
 
@@ -48,7 +48,7 @@ fn from_wkt(wkt: String) -> Geometry:
             for seg in body.split(","):
                 let xy = seg.strip().split(" ")
                 if xy.size() >= 2:
-                    coords.push_back((xy[0].to_float64(), xy[1].to_float64()))
+                    coords.append((xy[0].to_float64(), xy[1].to_float64()))
             return LineString(coords)
     if s.starts_with("MULTILINESTRING"):
         let l = s.find("(")
@@ -69,8 +69,8 @@ fn from_wkt(wkt: String) -> Geometry:
                 for seg in ring_body.split(","):
                     let xy = seg.strip().split(" ")
                     if xy.size() >= 2:
-                        coords.push_back((xy[0].to_float64(), xy[1].to_float64()))
-                lines.push_back(LineString(coords))
+                        coords.append((xy[0].to_float64(), xy[1].to_float64()))
+                lines.append(LineString(coords))
             return MultiLineString(lines)
     if s.starts_with("MULTIPOINT"):
         let l = s.find("(")
@@ -84,12 +84,12 @@ fn from_wkt(wkt: String) -> Geometry:
                     if inner.size() == 0: continue
                     let xy = inner.split(" ")
                     if xy.size() >= 2:
-                        pts.push_back(Point(xy[0].to_float64(), xy[1].to_float64()))
+                        pts.append(Point(xy[0].to_float64(), xy[1].to_float64()))
             else:
                 for seg in body.split(","):
                     let xy = seg.strip().split(" ")
                     if xy.size() >= 2:
-                        pts.push_back(Point(xy[0].to_float64(), xy[1].to_float64()))
+                        pts.append(Point(xy[0].to_float64(), xy[1].to_float64()))
             return MultiPoint(pts)
     if s.starts_with("POLYGON"):
         let l = s.find("(")
@@ -106,14 +106,14 @@ fn from_wkt(wkt: String) -> Geometry:
                 var ring_body = gg
                 if gg.starts_with("(") and gg.ends_with(")"):
                     ring_body = gg.slice(1, gg.size() - 1)
-                rings.push_back(_parse_ring(ring_body))
+                rings.append(_parse_ring(ring_body))
             if rings.size() == 0:
                 return Polygon(LinearRing(List[Tuple[Float64, Float64]]()))
             let shell = rings[0]
             var holes = List[LinearRing]()
             var i = 1
             while i < rings.size():
-                holes.push_back(rings[i])
+                holes.append(rings[i])
                 i += 1
             return Polygon(shell, holes)
     if s.starts_with("MULTIPOLYGON"):
@@ -141,15 +141,15 @@ fn from_wkt(wkt: String) -> Geometry:
                     var ring_body = gg
                     if gg.starts_with("(") and gg.ends_with(")"):
                         ring_body = gg.slice(1, gg.size() - 1)
-                    rings.push_back(_parse_ring(ring_body))
+                    rings.append(_parse_ring(ring_body))
                 if rings.size() > 0:
                     let shell = rings[0]
                     var holes = List[LinearRing]()
                     var i = 1
                     while i < rings.size():
-                        holes.push_back(rings[i])
+                        holes.append(rings[i])
                         i += 1
-                    polys.push_back(Polygon(shell, holes))
+                    polys.append(Polygon(shell, holes))
             return MultiPolygon(polys)
     # default fallback
     return Polygon(LinearRing(List[Tuple[Float64, Float64]]()))

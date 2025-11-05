@@ -1,18 +1,17 @@
-from shapely._geometry import Geometry, GeometryType
+from shapely._geometry import Geometry
 
 
-struct Point(Geometry):
+struct Point(Copyable, Movable):
     var x: Float64
     var y: Float64
     var has_z: Bool
     var z: Float64
 
-    fn __init__(self, x: Float64, y: Float64):
+    fn __init__(out self, x: Float64, y: Float64):
         self.x = x
         self.y = y
         self.has_z = False
         self.z = 0.0
-        super().__init__(GeometryType.POINT)
 
     fn with_z(self, z: Float64) -> Point:
         var p = Point(self.x, self.y)
@@ -32,12 +31,11 @@ struct Point(Geometry):
         return (self.x, self.y, self.x, self.y)
 
 
-struct LineString(Geometry):
+struct LineString(Copyable, Movable):
     var coords: List[Tuple[Float64, Float64]]
 
-    fn __init__(self, coords: List[Tuple[Float64, Float64]]):
+    fn __init__(out self, coords: List[Tuple[Float64, Float64]]):
         self.coords = coords
-        super().__init__(GeometryType.LINESTRING)
 
     fn is_empty(self) -> Bool:
         return self.coords.size() == 0
@@ -66,12 +64,11 @@ struct LineString(Geometry):
         return (minx, miny, maxx, maxy)
 
 
-struct LinearRing(Geometry):
+struct LinearRing(Copyable, Movable):
     var coords: List[Tuple[Float64, Float64]]
 
     fn __init__(self, coords: List[Tuple[Float64, Float64]]):
         self.coords = coords
-        super().__init__(GeometryType.LINEARRING)
 
     fn is_empty(self) -> Bool:
         return self.coords.is_empty()
@@ -100,14 +97,13 @@ struct LinearRing(Geometry):
         return (minx, miny, maxx, maxy)
 
 
-struct Polygon(Geometry):
+struct Polygon(Copyable, Movable):
     var shell: LinearRing
     var holes: List[LinearRing]
 
-    fn __init__(self, shell: LinearRing, holes: List[LinearRing] = List[LinearRing]()):
-        self.shell = shell
-        self.holes = holes
-        super().__init__(GeometryType.POLYGON)
+    fn __init__(out self, shell: LinearRing, holes: List[LinearRing] = List[LinearRing]()):
+        self.shell = shell.copy()
+        self.holes = holes.copy()
 
     fn is_empty(self) -> Bool:
         return self.shell.coords.size() == 0
@@ -148,12 +144,11 @@ struct Polygon(Geometry):
         return (minx, miny, maxx, maxy)
 
 
-struct GeometryCollection(Geometry):
+struct GeometryCollection(Copyable, Movable):
     var geoms: List[Geometry]
 
-    fn __init__(self, geoms: List[Geometry]):
+    fn __init__(out self, geoms: List[Geometry]):
         self.geoms = geoms
-        super().__init__(GeometryType.GEOMETRYCOLLECTION)
 
     fn is_empty(self) -> Bool:
         return self.geoms.size() == 0
@@ -188,11 +183,10 @@ struct GeometryCollection(Geometry):
         return (minx, miny, maxx, maxy)
 
 
-struct MultiPoint(Geometry):
+struct MultiPoint(Copyable, Movable):
     var points: List[Point]
-    fn __init__(self, points: List[Point]):
+    fn __init__(out self, points: List[Point]):
         self.points = points
-        super().__init__(GeometryType.MULTIPOINT)
 
     fn to_wkt(self) -> String:
         var s = "MULTIPOINT ("
@@ -218,11 +212,10 @@ struct MultiPoint(Geometry):
         return (minx, miny, maxx, maxy)
 
 
-struct MultiLineString(Geometry):
+struct MultiLineString(Copyable, Movable):
     var lines: List[LineString]
-    fn __init__(self, lines: List[LineString]):
+    fn __init__(out self, lines: List[LineString]):
         self.lines = lines
-        super().__init__(GeometryType.MULTILINESTRING)
 
     fn to_wkt(self) -> String:
         var s = "MULTILINESTRING ("
@@ -260,11 +253,10 @@ struct MultiLineString(Geometry):
         return (minx, miny, maxx, maxy)
 
 
-struct MultiPolygon(Geometry):
+struct MultiPolygon(Copyable, Movable):
     var polys: List[Polygon]
-    fn __init__(self, polys: List[Polygon]):
+    fn __init__(out self, polys: List[Polygon]):
         self.polys = polys
-        super().__init__(GeometryType.MULTIPOLYGON)
 
     fn to_wkt(self) -> String:
         var s = "MULTIPOLYGON ("

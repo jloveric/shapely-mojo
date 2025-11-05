@@ -1,4 +1,4 @@
-from shapely._geometry import GeometryType, Geometry
+from shapely._geometry import Geometry
 from shapely.geometry import Point, LineString, LinearRing, Polygon, MultiPoint, MultiLineString, MultiPolygon, GeometryCollection
 
 
@@ -13,21 +13,21 @@ fn linestrings(coords: List[Tuple[Float64, Float64]]) -> LineString:
 fn linearrings(coords: List[Tuple[Float64, Float64]]) -> LinearRing:
     # Ensure closed ring (repeat start if needed)
     if coords.size() > 0:
-        let first = coords[0]
-        let last = coords[coords.size() - 1]
+        var first = coords[0]
+        var last = coords[coords.size() - 1]
         if first[0] != last[0] or first[1] != last[1]:
             var closed = List[Tuple[Float64, Float64]]()
-            for c in coords: closed.push_back(c)
-            closed.push_back(first)
+            for c in coords: closed.append(c)
+            closed.append(first)
             return LinearRing(closed)
     return LinearRing(coords)
 
 
 fn polygons(shell_coords: List[Tuple[Float64, Float64]], holes: List[List[Tuple[Float64, Float64]]] = List[List[Tuple[Float64, Float64]]]()) -> Polygon:
-    let shell = linearrings(shell_coords)
+    var shell = linearrings(shell_coords)
     var ring_holes = List[LinearRing]()
     for h in holes:
-        ring_holes.push_back(linearrings(h))
+        ring_holes.append(linearrings(h))
     return Polygon(shell, ring_holes)
 
 

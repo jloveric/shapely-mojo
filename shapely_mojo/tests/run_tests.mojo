@@ -53,8 +53,8 @@ fn test_set_operations() -> (Int32, Int32):
     p += t5[0]; f += t5[1]
 
     var items = List[Geometry]()
-    items.push_back(unsafe_bitcast[Geometry](A))
-    items.push_back(unsafe_bitcast[Geometry](B))
+    items.append(unsafe_bitcast[Geometry](A))
+    items.append(unsafe_bitcast[Geometry](B))
     var uu = unary_union(items)
     var t6 = expect("unary_union area == 7", approx_eq(area(uu), 7.0))
     p += t6[0]; f += t6[1]
@@ -70,11 +70,11 @@ fn test_strtree_predicates() -> (Int32, Int32):
     var S = mk_square(0.2, 0.2, 0.8, 0.8)
 
     var geoms = List[Geometry]()
-    geoms.push_back(unsafe_bitcast[Geometry](A))
-    geoms.push_back(unsafe_bitcast[Geometry](B))
-    geoms.push_back(unsafe_bitcast[Geometry](E))
-    geoms.push_back(unsafe_bitcast[Geometry](C))
-    geoms.push_back(unsafe_bitcast[Geometry](S))
+    geoms.append(unsafe_bitcast[Geometry](A))
+    geoms.append(unsafe_bitcast[Geometry](B))
+    geoms.append(unsafe_bitcast[Geometry](E))
+    geoms.append(unsafe_bitcast[Geometry](C))
+    geoms.append(unsafe_bitcast[Geometry](S))
     var tree = STRtree(geoms)
 
     var p: Int32 = 0
@@ -128,14 +128,14 @@ fn test_strtree_nearest_knn() -> (Int32, Int32):
     var B = mk_square(5.0, 0.0, 7.0, 2.0)
     var C = mk_square(10.0, 0.0, 12.0, 2.0)
     var geoms = List[Geometry]()
-    geoms.push_back(unsafe_bitcast[Geometry](A))
-    geoms.push_back(unsafe_bitcast[Geometry](B))
-    geoms.push_back(unsafe_bitcast[Geometry](C))
+    geoms.append(unsafe_bitcast[Geometry](A))
+    geoms.append(unsafe_bitcast[Geometry](B))
+    geoms.append(unsafe_bitcast[Geometry](C))
     var tree = STRtree(geoms)
 
     var p = Point(4.7, 1.0)
     var n = tree.nearest(p)
-    var dnA = distance(n, p)
+    var dnA = distance(p, n)
     var pcount: Int32 = 0
     var fcount: Int32 = 0
     var n1 = expect("STRtree.nearest returns closest", approx_eq(dnA, distance(B, p)))

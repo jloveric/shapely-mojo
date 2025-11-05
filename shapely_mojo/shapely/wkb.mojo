@@ -1,32 +1,32 @@
-from shapely._geometry import Geometry, GeometryType
+from shapely._geometry import Geometry
 from shapely.geometry import Point, LineString, LinearRing, Polygon, MultiPoint, MultiLineString, MultiPolygon, GeometryCollection
 
 
 fn _write_u8(out: List[UInt8], v: UInt8) -> List[UInt8]:
     var o = out
-    o.push_back(v)
+    o.append(v)
     return o
 
 
 fn _write_u32_le(out: List[UInt8], v: UInt32) -> List[UInt8]:
     var o = out
-    o.push_back((v & 0xFF) as UInt8)
-    o.push_back(((v >> 8) & 0xFF) as UInt8)
-    o.push_back(((v >> 16) & 0xFF) as UInt8)
-    o.push_back(((v >> 24) & 0xFF) as UInt8)
+    o.append((v & 0xFF) as UInt8)
+    o.append(((v >> 8) & 0xFF) as UInt8)
+    o.append(((v >> 16) & 0xFF) as UInt8)
+    o.append(((v >> 24) & 0xFF) as UInt8)
     return o
 
 
 fn _write_u64_le(out: List[UInt8], v: UInt64) -> List[UInt8]:
     var o = out
-    o.push_back((v & 0xFF) as UInt8)
-    o.push_back(((v >> 8) & 0xFF) as UInt8)
-    o.push_back(((v >> 16) & 0xFF) as UInt8)
-    o.push_back(((v >> 24) & 0xFF) as UInt8)
-    o.push_back(((v >> 32) & 0xFF) as UInt8)
-    o.push_back(((v >> 40) & 0xFF) as UInt8)
-    o.push_back(((v >> 48) & 0xFF) as UInt8)
-    o.push_back(((v >> 56) & 0xFF) as UInt8)
+    o.append((v & 0xFF) as UInt8)
+    o.append(((v >> 8) & 0xFF) as UInt8)
+    o.append(((v >> 16) & 0xFF) as UInt8)
+    o.append(((v >> 24) & 0xFF) as UInt8)
+    o.append(((v >> 32) & 0xFF) as UInt8)
+    o.append(((v >> 40) & 0xFF) as UInt8)
+    o.append(((v >> 48) & 0xFF) as UInt8)
+    o.append(((v >> 56) & 0xFF) as UInt8)
     return o
 
 
@@ -120,7 +120,7 @@ fn _to_wkb_multipoint(mp: MultiPoint) -> List[UInt8]:
     out = _write_u32_le(out, mp.points.size() as UInt32)
     for p in mp.points:
         let sub = _to_wkb_point(p)
-        for b in sub: out.push_back(b)
+        for b in sub: out.append(b)
     return out
 
 
@@ -131,7 +131,7 @@ fn _to_wkb_multilinestring(mls: MultiLineString) -> List[UInt8]:
     out = _write_u32_le(out, mls.lines.size() as UInt32)
     for ln in mls.lines:
         let sub = _to_wkb_linestring(ln)
-        for b in sub: out.push_back(b)
+        for b in sub: out.append(b)
     return out
 
 
@@ -142,7 +142,7 @@ fn _to_wkb_multipolygon(mp: MultiPolygon) -> List[UInt8]:
     out = _write_u32_le(out, mp.polys.size() as UInt32)
     for p in mp.polys:
         let sub = _to_wkb_polygon(p)
-        for b in sub: out.push_back(b)
+        for b in sub: out.append(b)
     return out
 
 
@@ -169,7 +169,7 @@ fn to_wkb(g: Geometry) -> List[UInt8]:
         _write_u32_le(out, gc.geoms.size() as UInt32)
         for gg in gc.geoms:
             let sub = to_wkb(gg)
-            for b in sub: out.push_back(b)
+            for b in sub: out.append(b)
         return out
     return List[UInt8]()
 
@@ -189,7 +189,7 @@ fn _from_wkb_linestring(buf: List[UInt8], pos: Int, little: Bool) -> (LineString
     while i < n:
         let (x, p1) = _read_f64(buf, p, little)
         let (y, p2) = _read_f64(buf, p1, little)
-        coords.push_back((x, y))
+        coords.append((x, y))
         i += 1
         p = p2
     return (LineString(coords), p)
@@ -204,7 +204,7 @@ fn _from_wkb_ring(buf: List[UInt8], pos: Int, little: Bool) -> (LinearRing, Int)
     while i < n:
         let (x, p1) = _read_f64(buf, p, little)
         let (y, p2) = _read_f64(buf, p1, little)
-        coords.push_back((x, y))
+        coords.append((x, y))
         i += 1
         p = p2
     return (LinearRing(coords), p)
@@ -221,7 +221,7 @@ fn _from_wkb_polygon(buf: List[UInt8], pos: Int, little: Bool) -> (Polygon, Int)
     var p = p1
     while i < nrings:
         let (hr, p2) = _from_wkb_ring(buf, p, little)
-        holes.push_back(hr)
+        holes.append(hr)
         i += 1
         p = p2
     return (Polygon(shell, holes), p)
@@ -236,7 +236,7 @@ fn _from_wkb_multipoint(buf: List[UInt8], pos: Int, little: Bool) -> (MultiPoint
     while i < n:
         let (g, p2) = _read_geom(buf, p)
         if g.__type_name__() == "Point":
-            pts.push_back(unsafe_bitcast[Point](g))
+            pts.append(unsafe_bitcast[Point](g))
         i += 1
         p = p2
     return (MultiPoint(pts), p)
@@ -251,7 +251,7 @@ fn _from_wkb_multilinestring(buf: List[UInt8], pos: Int, little: Bool) -> (Multi
     while i < n:
         let (g, p2) = _read_geom(buf, p)
         if g.__type_name__() == "LineString":
-            lines.push_back(unsafe_bitcast[LineString](g))
+            lines.append(unsafe_bitcast[LineString](g))
         i += 1
         p = p2
     return (MultiLineString(lines), p)
@@ -266,7 +266,7 @@ fn _from_wkb_multipolygon(buf: List[UInt8], pos: Int, little: Bool) -> (MultiPol
     while i < n:
         let (g, p2) = _read_geom(buf, p)
         if g.__type_name__() == "Polygon":
-            polys.push_back(unsafe_bitcast[Polygon](g))
+            polys.append(unsafe_bitcast[Polygon](g))
         i += 1
         p = p2
     return (MultiPolygon(polys), p)
@@ -298,7 +298,7 @@ fn _read_geom(buf: List[UInt8], pos: Int) -> (Geometry, Int):
         var p = p2
         while i < n:
             let (g, pn) = _read_geom(buf, p)
-            geoms.push_back(g)
+            geoms.append(g)
             i += 1
             p = pn
         return (GeometryCollection(geoms), p)
