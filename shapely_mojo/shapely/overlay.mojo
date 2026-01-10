@@ -300,9 +300,11 @@ fn next_edge(
 ) -> Int32:
     if Int(at_vertex) >= adj.__len__():
         return -1
+    # Choose the outgoing edge that makes the smallest clockwise turn from
+    # the incoming direction (bx, by). This traces faces with interior on the left.
     var best_idx: Int32 = -1
-    var best_cross = -1.0e308
     var best_dot = -1.0e308
+    var have_clockwise = False
     ref cand = adj[Int(at_vertex)]
     var i = 0
     while i < cand.__len__():
@@ -314,15 +316,17 @@ fn next_edge(
         var w_y = edges[Int(ei)].dy
         var cr = bx * w_y - by * w_x
         var dt = bx * w_x + by * w_y
-        if cr > 0.0:
-            if best_idx == -1 or best_cross < 0.0 or dt > best_dot:
+        if cr < 0.0:
+            # preferred: clockwise turn
+            if not have_clockwise or dt > best_dot:
                 best_idx = ei
-                best_cross = cr
                 best_dot = dt
-        elif best_idx == -1 and best_cross < 0.0:
-            if dt > best_dot:
+                have_clockwise = True
+        elif not have_clockwise:
+            # fallback: no clockwise options; choose the smallest counterclockwise
+            # by maximizing dot as well.
+            if best_idx == -1 or dt > best_dot:
                 best_idx = ei
-                best_cross = cr
                 best_dot = dt
         i += 1
     return best_idx
@@ -344,26 +348,33 @@ fn build_rings(
         var ring = List[Tuple[Float64, Float64]]()
         var start_e = Int32(e)
         var cur_e = start_e
+        var start_v = edges[Int(start_e)].src
         var bx = -edges[Int(cur_e)].dx
         var by = -edges[Int(cur_e)].dy
+        var closed = False
         while True:
             var idx = Int(cur_e)
             used[idx] = True
             var vsrc = edges[idx].src
             ring.append((verts[vsrc][0], verts[vsrc][1]))
             var vdst = edges[idx].dst
+            if vdst == start_v and ring.__len__() >= 3:
+                ring.append((verts[start_v][0], verts[start_v][1]))
+                closed = True
+                break
             var ne = next_edge(adj, edges, used, vdst, bx, by)
             if ne == -1:
                 break
             bx = -edges[Int(ne)].dx
             by = -edges[Int(ne)].dy
-            if ne == start_e:
-                ring.append(
-                    (verts[edges[Int(ne)].src][0], verts[edges[Int(ne)].src][1])
-                )
-                break
             cur_e = ne
-        if ring.__len__() >= 4:
+        if closed and ring.__len__() >= 3:
+            # Ensure explicit closure for downstream area computations.
+            var first = ring[0]
+            var last = ring[ring.__len__() - 1]
+            if first[0] != last[0] or first[1] != last[1]:
+                ring.append(first)
+        if closed and ring.__len__() >= 4:
             rings.append(ring)
         e += 1
     return rings

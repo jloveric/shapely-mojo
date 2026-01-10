@@ -252,25 +252,26 @@ fn polygonize(lines) -> GeometryCollection:
         var ring = List[Tuple[Float64, Float64]]()
         var start_e = Int32(e)
         var cur_e = start_e
-        var sx = verts[edges[cur_e].src][0]
-        var sy = verts[edges[cur_e].src][1]
+        var start_v = edges[cur_e].src
         var bx = -edges[cur_e].dx
         var by = -edges[cur_e].dy
+        var closed = False
         while True:
             edges[cur_e].used = True
             var vsrc = edges[cur_e].src
             ring.append((verts[vsrc][0], verts[vsrc][1]))
             var vdst = edges[cur_e].dst
+            if vdst == start_v and ring.__len__() >= 3:
+                ring.append((verts[start_v][0], verts[start_v][1]))
+                closed = True
+                break
             var ne = _polygonize_next_edge(adj, edges, vdst, bx, by)
             if ne == -1:
                 break
             bx = -edges[ne].dx
             by = -edges[ne].dy
-            if ne == start_e:
-                ring.append((verts[edges[ne].src][0], verts[edges[ne].src][1]))
-                break
             cur_e = ne
-        if ring.__len__() >= 4:
+        if closed and ring.__len__() >= 4:
             rings.append(ring)
         e += 1
 
@@ -456,25 +457,26 @@ fn polygonize_full(lines: Geometry) -> (GeometryCollection, MultiLineString, Mul
         var ring = List[Tuple[Float64, Float64]]()
         var start_e = Int32(e2)
         var cur_e = start_e
-        var sx = verts[edges[cur_e].src][0]
-        var sy = verts[edges[cur_e].src][1]
+        var start_v = edges[cur_e].src
         var bx = -edges[cur_e].dx
         var by = -edges[cur_e].dy
+        var closed = False
         while True:
             edges[cur_e].used = True
             var vsrc = edges[cur_e].src
             ring.append((verts[vsrc][0], verts[vsrc][1]))
             var vdst = edges[cur_e].dst
+            if vdst == start_v and ring.__len__() >= 3:
+                ring.append((verts[start_v][0], verts[start_v][1]))
+                closed = True
+                break
             var ne = _polygonize_next_edge(adj, edges, vdst, bx, by)
             if ne == -1:
                 break
             bx = -edges[ne].dx
             by = -edges[ne].dy
-            if ne == start_e:
-                ring.append((verts[edges[ne].src][0], verts[edges[ne].src][1]))
-                break
             cur_e = ne
-        if ring.__len__() >= 4:
+        if closed and ring.__len__() >= 4:
             rings.append(ring)
         e2 += 1
 

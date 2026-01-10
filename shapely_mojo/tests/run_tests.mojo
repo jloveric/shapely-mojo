@@ -39,6 +39,8 @@ fn test_set_operations() -> (Int32, Int32):
     var p: Int32 = 0
     var f: Int32 = 0
     print("areas: inter=" + area(inter).__str__() + ", union=" + area(u).__str__() + ", diff=" + area(diff).__str__() + ", xor=" + area(xor).__str__())
+    print("wkt: inter=" + inter.to_wkt())
+    print("wkt: xor=" + xor.to_wkt())
     var t1 = expect("intersection area == 1", approx_eq(area(inter), 1.0))
     p += t1[0]; f += t1[1]
     var t2 = expect("union area == 7", approx_eq(area(u), 7.0))
@@ -51,6 +53,7 @@ fn test_set_operations() -> (Int32, Int32):
     var mp = MultiPolygon([A.copy(), B.copy()])
     var u2 = union(mp, A)
     print("area: union(MultiPolygon, Polygon)=" + area(u2).__str__())
+    print("wkt: union(MultiPolygon, Polygon)=" + u2.to_wkt())
     var t5 = expect("union(MultiPolygon, Polygon) area == 7", approx_eq(area(u2), 7.0))
     p += t5[0]; f += t5[1]
 
