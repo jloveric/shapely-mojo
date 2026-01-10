@@ -283,8 +283,10 @@ struct STRtree:
         var best = 1.7976931348623157e308
         var best_idx = 0
         var i = 0
-        for b in self.boxes:
-            var gd = _distance(self.geoms[i], _target)
+        while i < self.boxes.__len__():
+            ref g = self.geoms[i]
+            var tgt = _target.copy()
+            var gd = _distance(g, tgt)
             var d2 = gd * gd
             if d2 < best:
                 best = d2
@@ -300,8 +302,10 @@ struct STRtree:
         var best = 1.7976931348623157e308
         var best_idx = 0
         var i = 0
-        for b in self.boxes:
-            var gd = _distance(self.geoms[i], _target)
+        while i < self.boxes.__len__():
+            ref g = self.geoms[i]
+            var pt = _target.copy()
+            var gd = _distance(g, pt)
             if gd < best:
                 best = gd
                 best_idx = i
@@ -317,8 +321,10 @@ struct STRtree:
         var idxs = List[Int32]()
         var dists = List[Float64]()
         var i = 0
-        for b in self.boxes:
-            var gd = _distance(self.geoms[i], _target)
+        while i < self.boxes.__len__():
+            ref g = self.geoms[i]
+            var tgt = _target.copy()
+            var gd = _distance(g, tgt)
             var d2 = gd * gd
             idxs.append(Int32(i))
             dists.append(d2)
@@ -354,8 +360,10 @@ struct STRtree:
         var best = 1.7976931348623157e308
         var best_idx: Int32 = -1
         var i = 0
-        for b in self.boxes:
-            var gd = _distance(self.geoms[i], _target)
+        while i < self.boxes.__len__():
+            ref g = self.geoms[i]
+            var tgt = _target.copy()
+            var gd = _distance(g, tgt)
             if gd < best:
                 best = gd
                 best_idx = Int32(i)
@@ -370,8 +378,10 @@ struct STRtree:
         var best = 1.7976931348623157e308
         var best_idx: Int32 = -1
         var i = 0
-        for b in self.boxes:
-            var gd = _distance(self.geoms[i], _target)
+        while i < self.boxes.__len__():
+            ref g = self.geoms[i]
+            var pt = _target.copy()
+            var gd = _distance(g, pt)
             if gd < best:
                 best = gd
                 best_idx = Int32(i)

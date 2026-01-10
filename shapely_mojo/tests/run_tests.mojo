@@ -38,6 +38,7 @@ fn test_set_operations() -> (Int32, Int32):
 
     var p: Int32 = 0
     var f: Int32 = 0
+    print("areas: inter=" + area(inter).__str__() + ", union=" + area(u).__str__() + ", diff=" + area(diff).__str__() + ", xor=" + area(xor).__str__())
     var t1 = expect("intersection area == 1", approx_eq(area(inter), 1.0))
     p += t1[0]; f += t1[1]
     var t2 = expect("union area == 7", approx_eq(area(u), 7.0))
@@ -49,6 +50,7 @@ fn test_set_operations() -> (Int32, Int32):
 
     var mp = MultiPolygon([A.copy(), B.copy()])
     var u2 = union(mp, A)
+    print("area: union(MultiPolygon, Polygon)=" + area(u2).__str__())
     var t5 = expect("union(MultiPolygon, Polygon) area == 7", approx_eq(area(u2), 7.0))
     p += t5[0]; f += t5[1]
 
@@ -56,6 +58,7 @@ fn test_set_operations() -> (Int32, Int32):
     items.append(Geometry(A.copy()))
     items.append(Geometry(B.copy()))
     var uu = unary_union(items)
+    print("area: unary_union=" + area(uu).__str__())
     var t6 = expect("unary_union area == 7", approx_eq(area(uu), 7.0))
     p += t6[0]; f += t6[1]
 
@@ -134,18 +137,25 @@ fn test_strtree_nearest_knn() -> (Int32, Int32):
     var tree = STRtree(geoms)
 
     var p = Point(4.7, 1.0)
+
+    print("CALL tree.nearest")
     var n = tree.nearest(p)
+    print("RETURN tree.nearest")
     var dnA = distance(p, n)
     var pcount: Int32 = 0
     var fcount: Int32 = 0
     var n1 = expect("STRtree.nearest returns closest", approx_eq(dnA, distance(B, p)))
     pcount += n1[0]; fcount += n1[1]
 
+    print("CALL tree.query_knn")
     var kn = tree.query_knn(Geometry(p.copy()), 2)
+    print("RETURN tree.query_knn")
     var n2 = expect("STRtree.kNN size == 2", kn.__len__() == 2)
     pcount += n2[0]; fcount += n2[1]
 
+    print("CALL tree.nearest_item")
     var idx = tree.nearest_item(p)
+    print("RETURN tree.nearest_item")
     var n3 = expect("STRtree.nearest_item index valid", idx >= 0 and idx < geoms.__len__())
     pcount += n3[0]; fcount += n3[1]
 
@@ -185,13 +195,24 @@ fn main():
 
     print("Running shapely-mojo tests...")
 
+    print("START test_set_operations")
     var r1 = test_set_operations()
+    print("END test_set_operations")
     passed += r1[0]; failed += r1[1]
+
+    print("START test_strtree_predicates")
     var r2 = test_strtree_predicates()
+    print("END test_strtree_predicates")
     passed += r2[0]; failed += r2[1]
+
+    print("START test_strtree_nearest_knn")
     var r3 = test_strtree_nearest_knn()
+    print("END test_strtree_nearest_knn")
     passed += r3[0]; failed += r3[1]
+
+    print("START test_polygonize_full_basic")
     var r4 = test_polygonize_full_basic()
+    print("END test_polygonize_full_basic")
     passed += r4[0]; failed += r4[1]
 
     print("\nSummary: ")

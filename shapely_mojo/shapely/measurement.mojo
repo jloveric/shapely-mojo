@@ -28,11 +28,11 @@ fn distance(ref a: Geometry, ref b: Polygon) -> Float64:
 
 
 fn distance(ref a: Polygon, ref b: Point) -> Float64:
-    return distance(Geometry(a.copy()), Geometry(b.copy()))
+    return distance(b.copy(), a.copy())
 
 
 fn distance(ref a: Point, ref b: Polygon) -> Float64:
-    return distance(Geometry(a.copy()), Geometry(b.copy()))
+    return distance(a.copy(), b.copy())
 
 
 fn length(g: Geometry) -> Float64:
@@ -395,3 +395,74 @@ fn distance(a: Polygon, b: Polygon) -> Float64:
 
 fn distance(ls: LineString, p: Point) -> Float64:
     return distance(p, ls)
+
+
+fn distance(p: Point, poly: Polygon) -> Float64:
+    # inside or on boundary -> 0
+    var rel = point_in_polygon(p, poly)
+    if rel != 0:
+        return 0.0
+
+    fn sqrt_f64(x: Float64) -> Float64:
+        if x <= 0.0:
+            return 0.0
+        var r = x
+        var i = 0
+        while i < 12:
+            r = 0.5 * (r + x / r)
+            i += 1
+        return r
+
+    var best = 1.7976931348623157e308
+
+    # shell
+    ref ring = poly.shell
+    for i in range(0, ring.coords.__len__() - 1):
+        var a1 = ring.coords[i]
+        var a2 = ring.coords[i + 1]
+        var vx = a2[0] - a1[0]
+        var vy = a2[1] - a1[1]
+        var wx = p.x - a1[0]
+        var wy = p.y - a1[1]
+        var vlen2 = vx * vx + vy * vy
+        var t = 0.0
+        if vlen2 > 0.0:
+            t = (wx * vx + wy * vy) / vlen2
+        if t < 0.0:
+            t = 0.0
+        if t > 1.0:
+            t = 1.0
+        var px = a1[0] + t * vx
+        var py = a1[1] + t * vy
+        var dx = p.x - px
+        var dy = p.y - py
+        var d = dx * dx + dy * dy
+        if d < best:
+            best = d
+
+    # holes
+    for h in poly.holes:
+        for i in range(0, h.coords.__len__() - 1):
+            var a1 = h.coords[i]
+            var a2 = h.coords[i + 1]
+            var vx = a2[0] - a1[0]
+            var vy = a2[1] - a1[1]
+            var wx = p.x - a1[0]
+            var wy = p.y - a1[1]
+            var vlen2 = vx * vx + vy * vy
+            var t = 0.0
+            if vlen2 > 0.0:
+                t = (wx * vx + wy * vy) / vlen2
+            if t < 0.0:
+                t = 0.0
+            if t > 1.0:
+                t = 1.0
+            var px = a1[0] + t * vx
+            var py = a1[1] + t * vy
+            var dx = p.x - px
+            var dy = p.y - py
+            var d = dx * dx + dy * dy
+            if d < best:
+                best = d
+
+    return sqrt_f64(best)

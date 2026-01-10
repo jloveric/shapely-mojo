@@ -116,13 +116,16 @@ fn intersects(a: Polygon, b: Polygon) -> Bool:
     var b_shell_ls = LineString(b.shell.coords)
     if any_segment_intersection(a_shell_ls, b_shell_ls):
         return True
-    # containment tests: one polygon contains a vertex of the other
-    if a.shell.coords.__len__() > 0:
-        var p = Point(a.shell.coords[0][0], a.shell.coords[0][1])
-        if point_in_polygon(p, b) != 0: return True
-    if b.shell.coords.__len__() > 0:
-        var p2 = Point(b.shell.coords[0][0], b.shell.coords[0][1])
-        if point_in_polygon(p2, a) != 0: return True
+    # boundary-touch / colinear-overlap cases: check if any vertex lies on the other boundary
+    # (do not count strict containment as intersects here)
+    for c in a.shell.coords:
+        var p = Point(c[0], c[1])
+        if point_in_polygon(p, b) == 2:
+            return True
+    for c in b.shell.coords:
+        var p2 = Point(c[0], c[1])
+        if point_in_polygon(p2, a) == 2:
+            return True
     return False
 
 
@@ -251,10 +254,15 @@ fn contains(a: Geometry, b: Geometry) -> Bool:
 
 fn contains(a: Polygon, b: Polygon) -> Bool:
     # Contains: intersection area equals area of b (boundary contact allowed)
-    var inter_g = _poly_intersection(a, b)
-    var ar_inter = _area(inter_g)
-    var ar_b = _area(b)
-    return ar_inter == ar_b
+    # Avoid relying on polygon-polygon intersection area here; instead check that all
+    # vertices of b lie inside or on boundary of a.
+    if b.shell.coords.__len__() == 0:
+        return True
+    for c in b.shell.coords:
+        var p = Point(c[0], c[1])
+        if point_in_polygon(p, a) == 0:
+            return False
+    return True
 
 
 fn within(a: Geometry, b: Geometry) -> Bool:
@@ -272,10 +280,13 @@ fn covers(a: Geometry, b: Geometry) -> Bool:
 
 fn covers(a: Polygon, b: Polygon) -> Bool:
     # Covers: area of intersection equals area of b (boundary allowed)
-    var inter_g = _poly_intersection(a, b)
-    var ar_inter = _area(inter_g)
-    var ar_b = _area(b)
-    return ar_inter == ar_b
+    if b.shell.coords.__len__() == 0:
+        return True
+    for c in b.shell.coords:
+        var p = Point(c[0], c[1])
+        if point_in_polygon(p, a) == 0:
+            return False
+    return True
 
 
 fn covered_by(a: Geometry, b: Geometry) -> Bool:
@@ -283,8 +294,14 @@ fn covered_by(a: Geometry, b: Geometry) -> Bool:
 
 
 fn contains_properly(a: Polygon, b: Polygon) -> Bool:
-    # Proper containment: contains without boundary touching
-    return contains(a, b) and not touches(a, b)
+    # Proper containment: all vertices of b strictly inside a (boundary excluded)
+    if b.shell.coords.__len__() == 0:
+        return True
+    for c in b.shell.coords:
+        var p = Point(c[0], c[1])
+        if point_in_polygon(p, a) != 1:
+            return False
+    return True
 
 
 fn contains_properly(a: Polygon, b: Point) -> Bool:

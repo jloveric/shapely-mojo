@@ -131,19 +131,35 @@ fn emit_edge(
     var my = (ay + by) * 0.5
     var nx = -dy / len
     var ny = dx / len
-    var sxp = mx + nx * eps
-    var syp = my + ny * eps
-    var insideA = point_in_polygon(make_point(sxp, syp), a) != 0
-    var insideB = point_in_polygon(make_point(sxp, syp), b) != 0
-    var include = False
+    # Sample just to the left and right of the directed edge.
+    # We include the directed edge only when the left side is inside the
+    # operation result and the right side is outside, so that the traced
+    # ring has the interior on the left.
+    var lx = mx + nx * eps
+    var ly = my + ny * eps
+    var rx = mx - nx * eps
+    var ry = my - ny * eps
+    var insideA_L = point_in_polygon(make_point(lx, ly), a) != 0
+    var insideB_L = point_in_polygon(make_point(lx, ly), b) != 0
+    var insideA_R = point_in_polygon(make_point(rx, ry), a) != 0
+    var insideB_R = point_in_polygon(make_point(rx, ry), b) != 0
+
+    var left_in = False
+    var right_in = False
     if op == 0:
-        include = insideA and insideB
+        left_in = insideA_L and insideB_L
+        right_in = insideA_R and insideB_R
     elif op == 1:
-        include = insideA or insideB
+        left_in = insideA_L or insideB_L
+        right_in = insideA_R or insideB_R
     elif op == 2:
-        include = insideA and not insideB
+        left_in = insideA_L and not insideB_L
+        right_in = insideA_R and not insideB_R
     else:
-        include = (insideA and not insideB) or (insideB and not insideA)
+        left_in = (insideA_L and not insideB_L) or (insideB_L and not insideA_L)
+        right_in = (insideA_R and not insideB_R) or (insideB_R and not insideA_R)
+
+    var include = left_in and not right_in
 
     var s_id = get_vid(sx, sy, verts)
     var d_id = get_vid(bx, by, verts)
