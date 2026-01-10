@@ -226,59 +226,60 @@ struct STRtree:
 
     fn query(self, _target: Polygon, predicate: String) -> List[Geometry]:
         var cands = self.query(_target)
+        var tgt = Geometry(_target.copy())
         if predicate == "intersects":
             var out = List[Geometry]()
             for g in cands:
-                if _intersects(g, _target):
+                if _intersects(g, tgt):
                     out.append(g.copy())
             return out.copy()
         elif predicate == "touches":
             var out2 = List[Geometry]()
             for g in cands:
-                if _touches(g, _target):
+                if _touches(g, tgt):
                     out2.append(g.copy())
             return out2.copy()
         elif predicate == "overlaps":
             var out3 = List[Geometry]()
             for g in cands:
-                if _overlaps(g, _target):
+                if _overlaps(g, tgt):
                     out3.append(g.copy())
             return out3.copy()
         elif predicate == "contains":
             var out4 = List[Geometry]()
             for g in cands:
-                if _contains(g, _target):
+                if _contains(g, tgt):
                     out4.append(g.copy())
             return out4.copy()
         elif predicate == "within":
             var out5 = List[Geometry]()
             for g in cands:
-                if _contains(_target, g):
+                if _contains(tgt, g):
                     out5.append(g.copy())
             return out5.copy()
         elif predicate == "covers":
             var out6 = List[Geometry]()
             for g in cands:
-                if _covers(g, _target):
+                if _covers(g, tgt):
                     out6.append(g.copy())
             return out6.copy()
         elif predicate == "covered_by":
             var out7 = List[Geometry]()
             for g in cands:
-                if _covers(_target, g):
+                if _covers(tgt, g):
                     out7.append(g.copy())
             return out7.copy()
         elif predicate == "contains_properly":
             var out10 = List[Geometry]()
             for g in cands:
-                if _contains_properly(g, _target):
+                if _contains_properly(g, tgt):
                     out10.append(g.copy())
             return out10.copy()
         return cands.copy()
 
     fn nearest(self, _target: Geometry) -> Geometry:
         if self.boxes.__len__() == 0:
-            return Polygon(LinearRing(List[Tuple[Float64, Float64]]()))
+            return Geometry(Polygon(LinearRing(List[Tuple[Float64, Float64]]())))
         var best = 1.7976931348623157e308
         var best_idx = 0
         var i = 0
@@ -295,7 +296,7 @@ struct STRtree:
 
     fn nearest(self, _target: Point) -> Geometry:
         if self.boxes.__len__() == 0:
-            return Polygon(LinearRing(List[Tuple[Float64, Float64]]()))
+            return Geometry(Polygon(LinearRing(List[Tuple[Float64, Float64]]())))
         var best = 1.7976931348623157e308
         var best_idx = 0
         var i = 0

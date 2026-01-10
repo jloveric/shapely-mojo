@@ -44,13 +44,13 @@ fn union(a: Polygon, b: Polygon) -> Geometry:
 
 fn union(mp: MultiPolygon, p: Polygon) -> Geometry:
     if mp.polys.__len__() == 0:
-        return Geometry(p)
+        return Geometry(p.copy())
     var g: Geometry = overlay_union(mp.polys[0], p)
     var i = 1
     while i < mp.polys.__len__():
         g = union(g, mp.polys[i])
         i += 1
-    return g
+    return g.copy()
 
 
 fn union(p: Polygon, mp: MultiPolygon) -> Geometry:
@@ -66,7 +66,7 @@ fn union(a: MultiPolygon, b: MultiPolygon) -> Geometry:
         while jj < b.polys.__len__():
             g0 = union(g0, b.polys[jj])
             jj += 1
-        return g0
+        return g0.copy()
     var g: Geometry = Geometry(a.polys[0].copy())
     var i = 1
     while i < a.polys.__len__():
@@ -76,7 +76,7 @@ fn union(a: MultiPolygon, b: MultiPolygon) -> Geometry:
     while j < b.polys.__len__():
         g = union(g, b.polys[j])
         j += 1
-    return g
+    return g.copy()
 
 
 fn _cross(ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
@@ -160,7 +160,7 @@ fn difference(a: Geometry, b: Geometry) -> Geometry:
     if a.is_polygon() and b.is_polygon():
         return difference(a.as_polygon(), b.as_polygon())
     if a.is_multipolygon() and b.is_polygon():
-        return difference(a.as_multipolygon(), b)
+        return difference(a.as_multipolygon(), b.as_polygon())
     if a.is_polygon() and b.is_multipolygon():
         return difference(a.as_polygon(), b.as_multipolygon())
     if a.is_multipolygon() and b.is_multipolygon():
@@ -211,12 +211,12 @@ fn symmetric_difference(a: Polygon, b: Geometry) -> Geometry:
 fn unary_union(geoms: List[Geometry]) -> Geometry:
     if geoms.__len__() == 0:
         return Geometry(_empty_polygon())
-    var acc: Geometry = geoms[0]
+    var acc: Geometry = geoms[0].copy()
     var i = 1
     while i < geoms.__len__():
         acc = union(acc, geoms[i])
         i += 1
-    return acc
+    return acc.copy()
 
 
 fn symmetric_difference(a: Polygon, b: Polygon) -> Geometry:
@@ -231,7 +231,7 @@ fn difference(a: MultiPolygon, p: Polygon) -> Geometry:
             var mp = dg.as_multipolygon()
             for x in mp.polys:
                 if not _is_empty_polygon(x):
-                    parts.append(x)
+                    parts.append(x.copy())
     if parts.__len__() == 0:
         return Geometry(_empty_polygon())
     if parts.__len__() == 1:
@@ -249,33 +249,36 @@ fn difference(p: Polygon, b: MultiPolygon) -> Geometry:
         if mp.polys.__len__() == 0:
             return Geometry(_empty_polygon())
         acc = mp.polys[0].copy()
-    return Geometry(acc)
+    return Geometry(acc.copy())
 
 
 fn difference(a: MultiPolygon, b: MultiPolygon) -> Geometry:
     var acc = List[Polygon]()
     for p in a.polys:
-        var pg = p as Geometry
         for q in b.polys:
-           var pg2 = difference(p, q)
-        if pg2.polys.size() > 0:
-            for x in pg2.polys:
-                if not _is_empty_polygon(x): acc.append(x)
-    if acc.size() == 0: return _empty_polygon()
-    if acc.size() == 1: return acc[0]
-    return MultiPolygon(acc)
+            var pg2 = difference(p, q)
+            if pg2.is_multipolygon():
+                var mp2 = pg2.as_multipolygon()
+                for x in mp2.polys:
+                    if not _is_empty_polygon(x):
+                        acc.append(x.copy())
+    if acc.__len__() == 0:
+        return Geometry(_empty_polygon())
+    if acc.__len__() == 1:
+        return Geometry(acc[0].copy())
+    return Geometry(MultiPolygon(acc))
 
 
 fn symmetric_difference(a: MultiPolygon, p: Polygon) -> Geometry:
     # fold XOR across all polygons: ((p1 XOR p) XOR p2) ...
-    if a.polys.size() == 0:
-        return p
+    if a.polys.__len__() == 0:
+        return Geometry(p.copy())
     var acc: Geometry = symmetric_difference(a.polys[0], p)
     var i = 1
-    while i < a.polys.size():
+    while i < a.polys.__len__():
         acc = symmetric_difference(acc, a.polys[i])
         i += 1
-    return acc
+    return acc.copy()
 
 
 fn symmetric_difference(p: Polygon, a: MultiPolygon) -> Geometry:
@@ -283,21 +286,22 @@ fn symmetric_difference(p: Polygon, a: MultiPolygon) -> Geometry:
 
 
 fn symmetric_difference(a: MultiPolygon, b: MultiPolygon) -> Geometry:
-    if a.polys.size() == 0:
-        if b.polys.size() == 0: return _empty_polygon()
-        var acc: Geometry = b.polys[0]
+    if a.polys.__len__() == 0:
+        if b.polys.__len__() == 0:
+            return Geometry(_empty_polygon())
+        var acc: Geometry = Geometry(b.polys[0].copy())
         var j = 1
-        while j < b.polys.size():
+        while j < b.polys.__len__():
             acc = symmetric_difference(acc, b.polys[j])
             j += 1
-        return acc
-    var acc2: Geometry = a.polys[0]
+        return acc.copy()
+    var acc2: Geometry = Geometry(a.polys[0].copy())
     var i = 1
-    while i < a.polys.size():
+    while i < a.polys.__len__():
         acc2 = symmetric_difference(acc2, a.polys[i])
         i += 1
     var k = 0
-    while k < b.polys.size():
+    while k < b.polys.__len__():
         acc2 = symmetric_difference(acc2, b.polys[k])
         k += 1
-    return acc2
+    return acc2.copy()

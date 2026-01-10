@@ -3,36 +3,36 @@ from shapely.geometry import Point, LineString, Polygon, MultiLineString, MultiP
 from shapely.algorithms import point_in_polygon, any_segment_intersection
 
 
-fn distance(a: Point, b: Geometry) -> Float64:
-    return distance(Geometry(a), b)
+fn distance(ref a: Point, ref b: Geometry) -> Float64:
+    return distance(Geometry(a.copy()), b)
 
 
-fn distance(a: Geometry, b: Point) -> Float64:
-    return distance(a, Geometry(b))
+fn distance(ref a: Geometry, ref b: Point) -> Float64:
+    return distance(a, Geometry(b.copy()))
 
 
-fn distance(a: LineString, b: Geometry) -> Float64:
-    return distance(Geometry(a), b)
+fn distance(ref a: LineString, ref b: Geometry) -> Float64:
+    return distance(Geometry(a.copy()), b)
 
 
-fn distance(a: Geometry, b: LineString) -> Float64:
-    return distance(a, Geometry(b))
+fn distance(ref a: Geometry, ref b: LineString) -> Float64:
+    return distance(a, Geometry(b.copy()))
 
 
-fn distance(a: Polygon, b: Geometry) -> Float64:
-    return distance(Geometry(a), b)
+fn distance(ref a: Polygon, ref b: Geometry) -> Float64:
+    return distance(Geometry(a.copy()), b)
 
 
-fn distance(a: Geometry, b: Polygon) -> Float64:
-    return distance(a, Geometry(b))
+fn distance(ref a: Geometry, ref b: Polygon) -> Float64:
+    return distance(a, Geometry(b.copy()))
 
 
-fn distance(a: Polygon, b: Point) -> Float64:
-    return distance(Geometry(a), Geometry(b))
+fn distance(ref a: Polygon, ref b: Point) -> Float64:
+    return distance(Geometry(a.copy()), Geometry(b.copy()))
 
 
-fn distance(a: Point, b: Polygon) -> Float64:
-    return distance(Geometry(a), Geometry(b))
+fn distance(ref a: Point, ref b: Polygon) -> Float64:
+    return distance(Geometry(a.copy()), Geometry(b.copy()))
 
 
 fn length(g: Geometry) -> Float64:
@@ -75,7 +75,7 @@ fn distance(a: Geometry, b: Geometry) -> Float64:
         var mls = a.as_multilinestring()
         var best = 1.7976931348623157e308
         for ln in mls.lines:
-            var d = distance(Geometry(ln), b)
+            var d = distance(Geometry(ln.copy()), b)
             if d < best:
                 best = d
         return best if best != 1.7976931348623157e308 else 0.0
@@ -83,7 +83,7 @@ fn distance(a: Geometry, b: Geometry) -> Float64:
         var mls2 = b.as_multilinestring()
         var best2 = 1.7976931348623157e308
         for ln2 in mls2.lines:
-            var d2 = distance(a, Geometry(ln2))
+            var d2 = distance(a, Geometry(ln2.copy()))
             if d2 < best2:
                 best2 = d2
         return best2 if best2 != 1.7976931348623157e308 else 0.0
@@ -92,7 +92,7 @@ fn distance(a: Geometry, b: Geometry) -> Float64:
         var mp = a.as_multipolygon()
         var best3 = 1.7976931348623157e308
         for p in mp.polys:
-            var d3 = distance(Geometry(p), b)
+            var d3 = distance(Geometry(p.copy()), b)
             if d3 < best3:
                 best3 = d3
         return best3 if best3 != 1.7976931348623157e308 else 0.0
@@ -100,7 +100,7 @@ fn distance(a: Geometry, b: Geometry) -> Float64:
         var mp2 = b.as_multipolygon()
         var best4 = 1.7976931348623157e308
         for p2 in mp2.polys:
-            var d4 = distance(a, Geometry(p2))
+            var d4 = distance(a, Geometry(p2.copy()))
             if d4 < best4:
                 best4 = d4
         return best4 if best4 != 1.7976931348623157e308 else 0.0
@@ -137,23 +137,23 @@ fn length(mls: MultiLineString) -> Float64:
 
 fn area(poly: Polygon) -> Float64:
     # Shoelace over exterior minus holes
-    var ring = poly.shell
+    ref ring = poly.shell
     if ring.coords.__len__() < 3:
         return 0.0
     var shell_sum = 0.0
     for i in range(0, ring.coords.__len__() - 1):
-        var a = ring.coords[i]
-        var b = ring.coords[i + 1]
+        ref a = ring.coords[i]
+        ref b = ring.coords[i + 1]
         shell_sum += a[0] * b[1] - a[1] * b[0]
     var holes_sum = 0.0
     for h in poly.holes:
-        if h.coords.size() >= 3:
+        if h.coords.__len__() >= 3:
             var hs = 0.0
-            for i in range(0, h.coords.size() - 1):
-                var a = h.coords[i]
-                var b = h.coords[i + 1]
+            for i in range(0, h.coords.__len__() - 1):
+                ref a = h.coords[i]
+                ref b = h.coords[i + 1]
                 hs += a[0] * b[1] - a[1] * b[0]
-            holes_sum += hs
+            holes_sum += 0.5 * abs(hs)
     var total = 0.5 * (shell_sum - holes_sum)
     if total < 0.0: return -total
     return total
@@ -181,7 +181,7 @@ fn distance(a: Point, b: Point) -> Float64:
 
 
 fn distance(a: Point, ls: LineString) -> Float64:
-    if ls.coords.size() == 0:
+    if ls.coords.__len__() == 0:
         return 0.0
     fn sqrt_f64(x: Float64) -> Float64:
         if x <= 0.0: return 0.0
@@ -192,7 +192,7 @@ fn distance(a: Point, ls: LineString) -> Float64:
             i += 1
         return r
     var best = 1.7976931348623157e308
-    for i in range(0, ls.coords.size() - 1):
+    for i in range(0, ls.coords.__len__() - 1):
         var a1 = ls.coords[i]
         var a2 = ls.coords[i + 1]
         var vx = a2[0] - a1[0]
@@ -215,9 +215,9 @@ fn distance(a: Point, ls: LineString) -> Float64:
 
 
 fn distance(a: LineString, b: LineString) -> Float64:
-    if a.coords.size() < 2 or b.coords.size() < 2:
+    if a.coords.__len__() < 2 or b.coords.__len__() < 2:
         # fallback to endpoint distances
-        if a.coords.size() == 0 or b.coords.size() == 0:
+        if a.coords.__len__() == 0 or b.coords.__len__() == 0:
             return 0.0
         var pa = Point(a.coords[0][0], a.coords[0][1])
         var pb = Point(b.coords[0][0], b.coords[0][1])
@@ -247,10 +247,10 @@ fn distance(a: LineString, b: LineString) -> Float64:
         var dy = py - cy
         return dx * dx + dy * dy
     var best = 1.7976931348623157e308
-    for i in range(0, a.coords.size() - 1):
+    for i in range(0, a.coords.__len__() - 1):
         var a1 = a.coords[i]
         var a2 = a.coords[i + 1]
-        for j in range(0, b.coords.size() - 1):
+        for j in range(0, b.coords.__len__() - 1):
             var b1 = b.coords[j]
             var b2 = b.coords[j + 1]
             var d2 = pt_seg_d2(a1[0], a1[1], b1[0], b1[1], b2[0], b2[1])
@@ -274,7 +274,7 @@ fn distance(ls: LineString, poly: Polygon) -> Float64:
         var hls = LineString(h.coords)
         if any_segment_intersection(ls, hls):
             return 0.0
-    if ls.coords.size() > 0:
+    if ls.coords.__len__() > 0:
         var p0 = Point(ls.coords[0][0], ls.coords[0][1])
         if point_in_polygon(p0, poly) != 0:
             return 0.0
@@ -303,10 +303,10 @@ fn distance(ls: LineString, poly: Polygon) -> Float64:
         return dx * dx + dy * dy
     var best = 1.7976931348623157e308
     # ls segments vs shell segments
-    for i in range(0, ls.coords.size() - 1):
+    for i in range(0, ls.coords.__len__() - 1):
         var p1 = ls.coords[i]
         var p2 = ls.coords[i + 1]
-        for j in range(0, poly.shell.coords.size() - 1):
+        for j in range(0, poly.shell.coords.__len__() - 1):
             var a = poly.shell.coords[j]
             var b = poly.shell.coords[j + 1]
             var d2a = pt_seg_d2(p1[0], p1[1], a[0], a[1], b[0], b[1])
@@ -319,10 +319,10 @@ fn distance(ls: LineString, poly: Polygon) -> Float64:
             if d2d < best: best = d2d
     # holes
     for h in poly.holes:
-        for i in range(0, ls.coords.size() - 1):
+        for i in range(0, ls.coords.__len__() - 1):
             var p1 = ls.coords[i]
             var p2 = ls.coords[i + 1]
-            for j in range(0, h.coords.size() - 1):
+            for j in range(0, h.coords.__len__() - 1):
                 var a = h.coords[j]
                 var b = h.coords[j + 1]
                 var d2a = pt_seg_d2(p1[0], p1[1], a[0], a[1], b[0], b[1])
@@ -346,10 +346,10 @@ fn distance(a: Polygon, b: Polygon) -> Float64:
     var b_ls = LineString(b.shell.coords)
     if any_segment_intersection(a_ls, b_ls):
         return 0.0
-    if a.shell.coords.size() > 0:
+    if a.shell.coords.__len__() > 0:
         var p = Point(a.shell.coords[0][0], a.shell.coords[0][1])
         if point_in_polygon(p, b) != 0: return 0.0
-    if b.shell.coords.size() > 0:
+    if b.shell.coords.__len__() > 0:
         var q = Point(b.shell.coords[0][0], b.shell.coords[0][1])
         if point_in_polygon(q, a) != 0: return 0.0
     # otherwise min distance between shell segments
@@ -376,10 +376,10 @@ fn distance(a: Polygon, b: Polygon) -> Float64:
         var dy = py - cy
         return dx * dx + dy * dy
     var best = 1.7976931348623157e308
-    for i in range(0, a.shell.coords.size() - 1):
+    for i in range(0, a.shell.coords.__len__() - 1):
         var a1 = a.shell.coords[i]
         var a2 = a.shell.coords[i + 1]
-        for j in range(0, b.shell.coords.size() - 1):
+        for j in range(0, b.shell.coords.__len__() - 1):
             var b1 = b.shell.coords[j]
             var b2 = b.shell.coords[j + 1]
             var d2a = pt_seg_d2(a1[0], a1[1], b1[0], b1[1], b2[0], b2[1])
@@ -395,62 +395,3 @@ fn distance(a: Polygon, b: Polygon) -> Float64:
 
 fn distance(ls: LineString, p: Point) -> Float64:
     return distance(p, ls)
-
-
-fn distance(p: Point, poly: Polygon) -> Float64:
-    # inside or on boundary -> 0
-    var rel = point_in_polygon(p, poly)
-    if rel != 0:
-        return 0.0
-    fn sqrt_f64(x: Float64) -> Float64:
-        if x <= 0.0: return 0.0
-        var r = x
-        var i = 0
-        while i < 12:
-            r = 0.5 * (r + x / r)
-            i += 1
-        return r
-    var best = 1.7976931348623157e308
-    # shell
-    var ring = poly.shell
-    for i in range(0, ring.coords.size() - 1):
-        var a1 = ring.coords[i]
-        var a2 = ring.coords[i + 1]
-        var vx = a2[0] - a1[0]
-        var vy = a2[1] - a1[1]
-        var wx = p.x - a1[0]
-        var wy = p.y - a1[1]
-        var vlen2 = vx * vx + vy * vy
-        var t = 0.0
-        if vlen2 > 0.0:
-            t = (wx * vx + wy * vy) / vlen2
-        if t < 0.0: t = 0.0
-        if t > 1.0: t = 1.0
-        var px = a1[0] + t * vx
-        var py = a1[1] + t * vy
-        var dx = p.x - px
-        var dy = p.y - py
-        var d = dx * dx + dy * dy
-        if d < best: best = d
-    # holes
-    for h in poly.holes:
-        for i in range(0, h.coords.size() - 1):
-            var a1 = h.coords[i]
-            var a2 = h.coords[i + 1]
-            var vx = a2[0] - a1[0]
-            var vy = a2[1] - a1[1]
-            var wx = p.x - a1[0]
-            var wy = p.y - a1[1]
-            var vlen2 = vx * vx + vy * vy
-            var t = 0.0
-            if vlen2 > 0.0:
-                t = (wx * vx + wy * vy) / vlen2
-            if t < 0.0: t = 0.0
-            if t > 1.0: t = 1.0
-            var px = a1[0] + t * vx
-            var py = a1[1] + t * vy
-            var dx = p.x - px
-            var dy = p.y - py
-            var d = dx * dx + dy * dy
-            if d < best: best = d
-    return sqrt_f64(best)

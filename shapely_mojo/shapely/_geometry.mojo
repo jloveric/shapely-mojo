@@ -25,25 +25,25 @@ struct Geometry(Copyable, Movable):
     var payload: GeometryPayload
 
     fn __init__(out self, var value: Point):
-        self.payload = GeometryPayload(value)
+        self.payload = GeometryPayload(value.copy())
 
     fn __init__(out self, var value: LineString):
-        self.payload = GeometryPayload(value)
+        self.payload = GeometryPayload(value.copy())
 
     fn __init__(out self, var value: Polygon):
-        self.payload = GeometryPayload(value)
+        self.payload = GeometryPayload(value.copy())
 
     fn __init__(out self, var value: GeometryCollection):
-        self.payload = GeometryPayload(value)
+        self.payload = GeometryPayload(value.copy())
 
     fn __init__(out self, var value: MultiPoint):
-        self.payload = GeometryPayload(value)
+        self.payload = GeometryPayload(value.copy())
 
     fn __init__(out self, var value: MultiLineString):
-        self.payload = GeometryPayload(value)
+        self.payload = GeometryPayload(value.copy())
 
     fn __init__(out self, var value: MultiPolygon):
-        self.payload = GeometryPayload(value)
+        self.payload = GeometryPayload(value.copy())
 
     fn is_point(self) -> Bool:
         return self.payload.isa[Point]()

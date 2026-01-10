@@ -159,11 +159,11 @@ fn test_polygonize_full_basic() -> (Int32, Int32):
     var dangle = LineString([(2.0,1.0),(3.0,1.0)])
     var lines = MultiLineString([ring.copy(), dangle.copy()])
 
-    var res = polygonize_full(Geometry(lines))
-    var polys = res[0]
-    var dangles = res[1]
-    var cut_edges = res[2]
-    var invalid_rings = res[3]
+    var res = polygonize_full(Geometry(lines.copy()))
+    ref polys = res[0]
+    ref dangles = res[1]
+    ref cut_edges = res[2]
+    ref invalid_rings = res[3]
 
     var p: Int32 = 0
     var f: Int32 = 0
