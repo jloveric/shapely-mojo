@@ -3,84 +3,112 @@ from shapely.geometry import Point, LineString, Polygon, MultiLineString, MultiP
 from shapely.algorithms import point_in_polygon, any_segment_intersection
 
 
+fn distance(a: Point, b: Geometry) -> Float64:
+    return distance(Geometry(a), b)
+
+
+fn distance(a: Geometry, b: Point) -> Float64:
+    return distance(a, Geometry(b))
+
+
+fn distance(a: LineString, b: Geometry) -> Float64:
+    return distance(Geometry(a), b)
+
+
+fn distance(a: Geometry, b: LineString) -> Float64:
+    return distance(a, Geometry(b))
+
+
+fn distance(a: Polygon, b: Geometry) -> Float64:
+    return distance(Geometry(a), b)
+
+
+fn distance(a: Geometry, b: Polygon) -> Float64:
+    return distance(a, Geometry(b))
+
+
+fn distance(a: Polygon, b: Point) -> Float64:
+    return distance(Geometry(a), Geometry(b))
+
+
+fn distance(a: Point, b: Polygon) -> Float64:
+    return distance(Geometry(a), Geometry(b))
+
+
 fn length(g: Geometry) -> Float64:
-    var t = g.__type_name__()
-    if t == "LineString":
-        var ls = unsafe_bitcast[LineString](g)
-        return length(ls)
-    if t == "MultiLineString":
-        var mls = unsafe_bitcast[MultiLineString](g)
-        return length(mls)
+    if g.is_linestring():
+        return length(g.as_linestring())
+    if g.is_multilinestring():
+        return length(g.as_multilinestring())
     return 0.0
 
 
 fn area(g: Geometry) -> Float64:
-    var t = g.__type_name__()
-    if t == "Polygon":
-        var p = unsafe_bitcast[Polygon](g)
-        return area(p)
-    if t == "MultiPolygon":
-        var mp = unsafe_bitcast[MultiPolygon](g)
-        return area(mp)
+    if g.is_polygon():
+        return area(g.as_polygon())
+    if g.is_multipolygon():
+        return area(g.as_multipolygon())
     return 0.0
 
 
 fn distance(a: Geometry, b: Geometry) -> Float64:
-    var ta = a.__type_name__()
-    var tb = b.__type_name__()
-    if ta == "Point" and tb == "Point":
-        return distance(unsafe_bitcast[Point](a), unsafe_bitcast[Point](b))
-    if ta == "Point" and tb == "LineString":
-        return distance(unsafe_bitcast[Point](a), unsafe_bitcast[LineString](b))
-    if ta == "LineString" and tb == "Point":
-        return distance(unsafe_bitcast[LineString](a), unsafe_bitcast[Point](b))
-    if ta == "Point" and tb == "Polygon":
-        return distance(unsafe_bitcast[Point](a), unsafe_bitcast[Polygon](b))
-    if ta == "Polygon" and tb == "Point":
-        return distance(unsafe_bitcast[Polygon](a), unsafe_bitcast[Point](b))
-    if ta == "LineString" and tb == "LineString":
-        return distance(unsafe_bitcast[LineString](a), unsafe_bitcast[LineString](b))
-    if ta == "LineString" and tb == "Polygon":
-        return distance(unsafe_bitcast[LineString](a), unsafe_bitcast[Polygon](b))
-    if ta == "Polygon" and tb == "LineString":
-        return distance(unsafe_bitcast[Polygon](a), unsafe_bitcast[LineString](b))
-    if ta == "Polygon" and tb == "Polygon":
-        return distance(unsafe_bitcast[Polygon](a), unsafe_bitcast[Polygon](b))
+    if a.is_point() and b.is_point():
+        return distance(a.as_point(), b.as_point())
+    if a.is_point() and b.is_linestring():
+        return distance(a.as_point(), b.as_linestring())
+    if a.is_linestring() and b.is_point():
+        return distance(a.as_linestring(), b.as_point())
+    if a.is_point() and b.is_polygon():
+        return distance(a.as_point(), b.as_polygon())
+    if a.is_polygon() and b.is_point():
+        return distance(a.as_polygon(), b.as_point())
+    if a.is_linestring() and b.is_linestring():
+        return distance(a.as_linestring(), b.as_linestring())
+    if a.is_linestring() and b.is_polygon():
+        return distance(a.as_linestring(), b.as_polygon())
+    if a.is_polygon() and b.is_linestring():
+        return distance(a.as_polygon(), b.as_linestring())
+    if a.is_polygon() and b.is_polygon():
+        return distance(a.as_polygon(), b.as_polygon())
     # MultiLineString folding
-    if ta == "MultiLineString":
-        var mls = unsafe_bitcast[MultiLineString](a)
+    if a.is_multilinestring():
+        var mls = a.as_multilinestring()
         var best = 1.7976931348623157e308
         for ln in mls.lines:
-            var d = distance(unsafe_bitcast[Geometry](ln), b)
-            if d < best: best = d
+            var d = distance(Geometry(ln), b)
+            if d < best:
+                best = d
         return best if best != 1.7976931348623157e308 else 0.0
-    if tb == "MultiLineString":
-        var mls2 = unsafe_bitcast[MultiLineString](b)
+    if b.is_multilinestring():
+        var mls2 = b.as_multilinestring()
         var best2 = 1.7976931348623157e308
         for ln2 in mls2.lines:
-            var d2 = distance(a, unsafe_bitcast[Geometry](ln2))
-            if d2 < best2: best2 = d2
+            var d2 = distance(a, Geometry(ln2))
+            if d2 < best2:
+                best2 = d2
         return best2 if best2 != 1.7976931348623157e308 else 0.0
     # MultiPolygon folding
-    if ta == "MultiPolygon":
-        var mp = unsafe_bitcast[MultiPolygon](a)
+    if a.is_multipolygon():
+        var mp = a.as_multipolygon()
         var best3 = 1.7976931348623157e308
         for p in mp.polys:
-            var d3 = distance(unsafe_bitcast[Geometry](p), b)
-            if d3 < best3: best3 = d3
+            var d3 = distance(Geometry(p), b)
+            if d3 < best3:
+                best3 = d3
         return best3 if best3 != 1.7976931348623157e308 else 0.0
-    if tb == "MultiPolygon":
-        var mp2 = unsafe_bitcast[MultiPolygon](b)
+    if b.is_multipolygon():
+        var mp2 = b.as_multipolygon()
         var best4 = 1.7976931348623157e308
         for p2 in mp2.polys:
-            var d4 = distance(a, unsafe_bitcast[Geometry](p2))
-            if d4 < best4: best4 = d4
+            var d4 = distance(a, Geometry(p2))
+            if d4 < best4:
+                best4 = d4
         return best4 if best4 != 1.7976931348623157e308 else 0.0
     return 0.0
 
 
 fn length(line: LineString) -> Float64:
-    if line.coords.size() <= 1:
+    if line.coords.__len__() <= 1:
         return 0.0
     fn sqrt_f64(x: Float64) -> Float64:
         if x <= 0.0: return 0.0
@@ -91,7 +119,7 @@ fn length(line: LineString) -> Float64:
             i += 1
         return r
     var total = 0.0
-    for i in range(0, line.coords.size() - 1):
+    for i in range(0, line.coords.__len__() - 1):
         var a = line.coords[i]
         var b = line.coords[i + 1]
         var dx = b[0] - a[0]
@@ -110,10 +138,10 @@ fn length(mls: MultiLineString) -> Float64:
 fn area(poly: Polygon) -> Float64:
     # Shoelace over exterior minus holes
     var ring = poly.shell
-    if ring.coords.size() < 3:
+    if ring.coords.__len__() < 3:
         return 0.0
     var shell_sum = 0.0
-    for i in range(0, ring.coords.size() - 1):
+    for i in range(0, ring.coords.__len__() - 1):
         var a = ring.coords[i]
         var b = ring.coords[i + 1]
         shell_sum += a[0] * b[1] - a[1] * b[0]

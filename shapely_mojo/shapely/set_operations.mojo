@@ -9,17 +9,33 @@ fn _empty_polygon() -> Polygon:
 
 
 fn _is_empty_polygon(p: Polygon) -> Bool:
-    return p.shell.coords.size() < 3
+    return p.shell.coords.__len__() < 3
 
 
 fn union(a: Geometry, b: Geometry) -> Geometry:
-    return union(unsafe_bitcast[Polygon](a), unsafe_bitcast[Polygon](b))
+    if a.is_polygon() and b.is_polygon():
+        return union(a.as_polygon(), b.as_polygon())
+    if a.is_multipolygon() and b.is_polygon():
+        return union(a.as_multipolygon(), b.as_polygon())
+    if a.is_polygon() and b.is_multipolygon():
+        return union(a.as_polygon(), b.as_multipolygon())
+    if a.is_multipolygon() and b.is_multipolygon():
+        return union(a.as_multipolygon(), b.as_multipolygon())
+    return Geometry(_empty_polygon())
 
 fn union(a: Geometry, b: Polygon) -> Geometry:
-    return union(unsafe_bitcast[Polygon](a), b)
+    if a.is_polygon():
+        return union(a.as_polygon(), b)
+    if a.is_multipolygon():
+        return union(a.as_multipolygon(), b)
+    return Geometry(_empty_polygon())
 
 fn union(a: Polygon, b: Geometry) -> Geometry:
-    return union(a, unsafe_bitcast[Polygon](b))
+    if b.is_polygon():
+        return union(a, b.as_polygon())
+    if b.is_multipolygon():
+        return union(a, b.as_multipolygon())
+    return Geometry(_empty_polygon())
 
 
 fn union(a: Polygon, b: Polygon) -> Geometry:
@@ -27,10 +43,11 @@ fn union(a: Polygon, b: Polygon) -> Geometry:
 
 
 fn union(mp: MultiPolygon, p: Polygon) -> Geometry:
-    if mp.polys.size() == 0: return p
+    if mp.polys.__len__() == 0:
+        return Geometry(p)
     var g: Geometry = overlay_union(mp.polys[0], p)
     var i = 1
-    while i < mp.polys.size():
+    while i < mp.polys.__len__():
         g = union(g, mp.polys[i])
         i += 1
     return g
@@ -41,22 +58,22 @@ fn union(p: Polygon, mp: MultiPolygon) -> Geometry:
 
 
 fn union(a: MultiPolygon, b: MultiPolygon) -> Geometry:
-    if a.polys.size() == 0:
-        if b.polys.size() == 0: return MultiPolygon([])
-        # return b as Geometry
-        var g0: Geometry = b.polys[0]
+    if a.polys.__len__() == 0:
+        if b.polys.__len__() == 0:
+            return Geometry(MultiPolygon([]))
+        var g0: Geometry = Geometry(b.polys[0].copy())
         var jj = 1
-        while jj < b.polys.size():
+        while jj < b.polys.__len__():
             g0 = union(g0, b.polys[jj])
             jj += 1
         return g0
-    var g: Geometry = a.polys[0]
+    var g: Geometry = Geometry(a.polys[0].copy())
     var i = 1
-    while i < a.polys.size():
+    while i < a.polys.__len__():
         g = union(g, a.polys[i])
         i += 1
     var j = 0
-    while j < b.polys.size():
+    while j < b.polys.__len__():
         g = union(g, b.polys[j])
         j += 1
     return g
@@ -85,15 +102,17 @@ fn _is_inside(p: Tuple[Float64, Float64], a: Tuple[Float64, Float64], b: Tuple[F
 
 fn _suth_hodg(subject: List[Tuple[Float64, Float64]], clip: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Float64]]:
     var output = subject
-    if output.size() == 0: return output
+    if output.__len__() == 0:
+        return output
     var i = 0
-    while i < clip.size() - 1:
+    while i < clip.__len__() - 1:
         var A = clip[i]
         var B = clip[i + 1]
         var input = output
         output = List[Tuple[Float64, Float64]]()
-        if input.size() == 0: break
-        var S = input[input.size() - 1]
+        if input.__len__() == 0:
+            break
+        var S = input[input.__len__() - 1]
         for E in input:
             if _is_inside(E, A, B):
                 if not _is_inside(S, A, B):
@@ -114,13 +133,23 @@ fn intersection(a: Polygon, b: Polygon) -> Geometry:
 
 
 fn intersection(a: Geometry, b: Geometry) -> Geometry:
-    return intersection(unsafe_bitcast[Polygon](a), unsafe_bitcast[Polygon](b))
+    if a.is_polygon() and b.is_polygon():
+        return intersection(a.as_polygon(), b.as_polygon())
+    if a.is_multipolygon() and b.is_polygon():
+        return intersection(a.as_multipolygon().polys[0], b) if a.as_multipolygon().polys.__len__() > 0 else Geometry(_empty_polygon())
+    if a.is_polygon() and b.is_multipolygon():
+        return intersection(a, b.as_multipolygon().polys[0]) if b.as_multipolygon().polys.__len__() > 0 else Geometry(_empty_polygon())
+    return Geometry(_empty_polygon())
 
 fn intersection(a: Geometry, b: Polygon) -> Geometry:
-    return intersection(unsafe_bitcast[Polygon](a), b)
+    if a.is_polygon():
+        return intersection(a.as_polygon(), b)
+    return Geometry(_empty_polygon())
 
 fn intersection(a: Polygon, b: Geometry) -> Geometry:
-    return intersection(a, unsafe_bitcast[Polygon](b))
+    if b.is_polygon():
+        return intersection(a, b.as_polygon())
+    return Geometry(_empty_polygon())
 
 
 fn difference(a: Polygon, b: Polygon) -> Geometry:
@@ -128,31 +157,63 @@ fn difference(a: Polygon, b: Polygon) -> Geometry:
 
 
 fn difference(a: Geometry, b: Geometry) -> Geometry:
-    return difference(unsafe_bitcast[Polygon](a), unsafe_bitcast[Polygon](b))
+    if a.is_polygon() and b.is_polygon():
+        return difference(a.as_polygon(), b.as_polygon())
+    if a.is_multipolygon() and b.is_polygon():
+        return difference(a.as_multipolygon(), b)
+    if a.is_polygon() and b.is_multipolygon():
+        return difference(a.as_polygon(), b.as_multipolygon())
+    if a.is_multipolygon() and b.is_multipolygon():
+        return difference(a.as_multipolygon(), b.as_multipolygon())
+    return Geometry(_empty_polygon())
 
 fn difference(a: Geometry, b: Polygon) -> Geometry:
-    return difference(unsafe_bitcast[Polygon](a), b)
+    if a.is_polygon():
+        return difference(a.as_polygon(), b)
+    if a.is_multipolygon():
+        return difference(a.as_multipolygon(), b)
+    return Geometry(_empty_polygon())
 
 fn difference(a: Polygon, b: Geometry) -> Geometry:
-    return difference(a, unsafe_bitcast[Polygon](b))
+    if b.is_polygon():
+        return difference(a, b.as_polygon())
+    if b.is_multipolygon():
+        return difference(a, b.as_multipolygon())
+    return Geometry(_empty_polygon())
 
 
 fn symmetric_difference(a: Geometry, b: Geometry) -> Geometry:
-    return symmetric_difference(unsafe_bitcast[Polygon](a), unsafe_bitcast[Polygon](b))
+    if a.is_polygon() and b.is_polygon():
+        return symmetric_difference(a.as_polygon(), b.as_polygon())
+    if a.is_multipolygon() and b.is_polygon():
+        return symmetric_difference(a.as_multipolygon(), b.as_polygon())
+    if a.is_polygon() and b.is_multipolygon():
+        return symmetric_difference(a.as_polygon(), b.as_multipolygon())
+    if a.is_multipolygon() and b.is_multipolygon():
+        return symmetric_difference(a.as_multipolygon(), b.as_multipolygon())
+    return Geometry(_empty_polygon())
 
 fn symmetric_difference(a: Geometry, b: Polygon) -> Geometry:
-    return symmetric_difference(unsafe_bitcast[Polygon](a), b)
+    if a.is_polygon():
+        return symmetric_difference(a.as_polygon(), b)
+    if a.is_multipolygon():
+        return symmetric_difference(a.as_multipolygon(), b)
+    return Geometry(_empty_polygon())
 
 fn symmetric_difference(a: Polygon, b: Geometry) -> Geometry:
-    return symmetric_difference(a, unsafe_bitcast[Polygon](b))
+    if b.is_polygon():
+        return symmetric_difference(a, b.as_polygon())
+    if b.is_multipolygon():
+        return symmetric_difference(a, b.as_multipolygon())
+    return Geometry(_empty_polygon())
 
 
 fn unary_union(geoms: List[Geometry]) -> Geometry:
-    if geoms.size() == 0:
-        return Polygon(LinearRing(List[Tuple[Float64, Float64]]()))
+    if geoms.__len__() == 0:
+        return Geometry(_empty_polygon())
     var acc: Geometry = geoms[0]
     var i = 1
-    while i < geoms.size():
+    while i < geoms.__len__():
         acc = union(acc, geoms[i])
         i += 1
     return acc
@@ -165,22 +226,30 @@ fn symmetric_difference(a: Polygon, b: Polygon) -> Geometry:
 fn difference(a: MultiPolygon, p: Polygon) -> Geometry:
     var parts = List[Polygon]()
     for q in a.polys:
-            var dg = difference(q, p)
-            if dg.polys.size() > 0:
-                for x in dg.polys:
-                    if not _is_empty_polygon(x): parts.append(x)
-    if parts.size() == 0: return _empty_polygon()
-    if parts.size() == 1: return parts[0]
-    return MultiPolygon(parts)
+        var dg = difference(q, p)
+        if dg.is_multipolygon():
+            var mp = dg.as_multipolygon()
+            for x in mp.polys:
+                if not _is_empty_polygon(x):
+                    parts.append(x)
+    if parts.__len__() == 0:
+        return Geometry(_empty_polygon())
+    if parts.__len__() == 1:
+        return Geometry(parts[0].copy())
+    return Geometry(MultiPolygon(parts))
 
 
 fn difference(p: Polygon, b: MultiPolygon) -> Geometry:
-    var acc = p
+    var acc = p.copy()
     for q in b.polys:
         var dg = difference(acc, q)
-        if dg.polys.size() == 0: return _empty_polygon()
-        acc = dg.polys[0]
-    return acc
+        if not dg.is_multipolygon():
+            return Geometry(_empty_polygon())
+        var mp = dg.as_multipolygon()
+        if mp.polys.__len__() == 0:
+            return Geometry(_empty_polygon())
+        acc = mp.polys[0].copy()
+    return Geometry(acc)
 
 
 fn difference(a: MultiPolygon, b: MultiPolygon) -> Geometry:

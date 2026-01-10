@@ -47,14 +47,14 @@ fn test_set_operations() -> (Int32, Int32):
     var t4 = expect("xor area == 6", approx_eq(area(xor), 6.0))
     p += t4[0]; f += t4[1]
 
-    var mp = MultiPolygon([A, B])
+    var mp = MultiPolygon([A.copy(), B.copy()])
     var u2 = union(mp, A)
     var t5 = expect("union(MultiPolygon, Polygon) area == 7", approx_eq(area(u2), 7.0))
     p += t5[0]; f += t5[1]
 
     var items = List[Geometry]()
-    items.append(unsafe_bitcast[Geometry](A))
-    items.append(unsafe_bitcast[Geometry](B))
+    items.append(Geometry(A.copy()))
+    items.append(Geometry(B.copy()))
     var uu = unary_union(items)
     var t6 = expect("unary_union area == 7", approx_eq(area(uu), 7.0))
     p += t6[0]; f += t6[1]
@@ -70,54 +70,54 @@ fn test_strtree_predicates() -> (Int32, Int32):
     var S = mk_square(0.2, 0.2, 0.8, 0.8)
 
     var geoms = List[Geometry]()
-    geoms.append(unsafe_bitcast[Geometry](A))
-    geoms.append(unsafe_bitcast[Geometry](B))
-    geoms.append(unsafe_bitcast[Geometry](E))
-    geoms.append(unsafe_bitcast[Geometry](C))
-    geoms.append(unsafe_bitcast[Geometry](S))
+    geoms.append(Geometry(A.copy()))
+    geoms.append(Geometry(B.copy()))
+    geoms.append(Geometry(E.copy()))
+    geoms.append(Geometry(C.copy()))
+    geoms.append(Geometry(S.copy()))
     var tree = STRtree(geoms)
 
     var p: Int32 = 0
     var f: Int32 = 0
     # intersects with A -> A and B and E (touching counts as intersects in Shapely)
     var q_inter = tree.query(A, "intersects")
-    var s1 = expect("STRtree intersects count", q_inter.size() == 3)
+    var s1 = expect("STRtree intersects count", q_inter.__len__() == 3)
     p += s1[0]; f += s1[1]
 
     # overlaps with B -> only A overlaps B
     var q_ov = tree.query(B, "overlaps")
-    var s2 = expect("STRtree overlaps count", q_ov.size() == 1)
+    var s2 = expect("STRtree overlaps count", q_ov.__len__() == 1)
     p += s2[0]; f += s2[1]
 
     # touches with A -> only E touches A (B intersects by area)
     var q_touch = tree.query(A, "touches")
-    var s3 = expect("STRtree touches count", q_touch.size() == 1)
+    var s3 = expect("STRtree touches count", q_touch.__len__() == 1)
     p += s3[0]; f += s3[1]
 
     # contains/within variants with S -> A contains S; equality cases allowed for contains/within/covered_by
     var q_withinS = tree.query(S, "within")  # geoms within S (includes S)
-    var s4 = expect("STRtree within(S) count >= 1", q_withinS.size() >= 1)
+    var s4 = expect("STRtree within(S) count >= 1", q_withinS.__len__() >= 1)
     p += s4[0]; f += s4[1]
 
     var q_coveredbyS = tree.query(S, "covered_by")  # geoms covered_by S (includes S, possibly others that fully cover S)
-    var s5 = expect("STRtree covered_by(S) count >= 1", q_coveredbyS.size() >= 1)
+    var s5 = expect("STRtree covered_by(S) count >= 1", q_coveredbyS.__len__() >= 1)
     p += s5[0]; f += s5[1]
 
     var q_containsS = tree.query(S, "contains")  # geoms that contain S (A, maybe S depending on semantics)
-    var s6 = expect("STRtree contains(S) count >= 1", q_containsS.size() >= 1)
+    var s6 = expect("STRtree contains(S) count >= 1", q_containsS.__len__() >= 1)
     p += s6[0]; f += s6[1]
 
     var q_cp = tree.query(S, "contains_properly")  # geoms that properly contain S (should be A)
-    var s7 = expect("STRtree contains_properly(S) count == 1", q_cp.size() == 1)
+    var s7 = expect("STRtree contains_properly(S) count == 1", q_cp.__len__() == 1)
     p += s7[0]; f += s7[1]
 
     # contains(A) -> none should contain A except possibly A itself depending on semantics
     var q_containsA = tree.query(A, "contains")
-    var s8 = expect("STRtree contains(A) count >= 0", q_containsA.size() >= 0)
+    var s8 = expect("STRtree contains(A) count >= 0", q_containsA.__len__() >= 0)
     p += s8[0]; f += s8[1]
 
     var q_coveredbyA = tree.query(A, "covered_by")  # geoms covered_by A (includes A itself)
-    var s9 = expect("STRtree covered_by(A) count >= 1", q_coveredbyA.size() >= 1)
+    var s9 = expect("STRtree covered_by(A) count >= 1", q_coveredbyA.__len__() >= 1)
     p += s9[0]; f += s9[1]
 
     return (p, f)
@@ -128,9 +128,9 @@ fn test_strtree_nearest_knn() -> (Int32, Int32):
     var B = mk_square(5.0, 0.0, 7.0, 2.0)
     var C = mk_square(10.0, 0.0, 12.0, 2.0)
     var geoms = List[Geometry]()
-    geoms.append(unsafe_bitcast[Geometry](A))
-    geoms.append(unsafe_bitcast[Geometry](B))
-    geoms.append(unsafe_bitcast[Geometry](C))
+    geoms.append(Geometry(A.copy()))
+    geoms.append(Geometry(B.copy()))
+    geoms.append(Geometry(C.copy()))
     var tree = STRtree(geoms)
 
     var p = Point(4.7, 1.0)
@@ -141,12 +141,12 @@ fn test_strtree_nearest_knn() -> (Int32, Int32):
     var n1 = expect("STRtree.nearest returns closest", approx_eq(dnA, distance(B, p)))
     pcount += n1[0]; fcount += n1[1]
 
-    var kn = tree.query_knn(p, 2)
-    var n2 = expect("STRtree.kNN size == 2", kn.size() == 2)
+    var kn = tree.query_knn(Geometry(p.copy()), 2)
+    var n2 = expect("STRtree.kNN size == 2", kn.__len__() == 2)
     pcount += n2[0]; fcount += n2[1]
 
     var idx = tree.nearest_item(p)
-    var n3 = expect("STRtree.nearest_item index valid", idx >= 0 and idx < geoms.size())
+    var n3 = expect("STRtree.nearest_item index valid", idx >= 0 and idx < geoms.__len__())
     pcount += n3[0]; fcount += n3[1]
 
     return (pcount, fcount)
@@ -157,9 +157,9 @@ fn test_polygonize_full_basic() -> (Int32, Int32):
     var ring = LineString([(0.0,0.0),(2.0,0.0),(2.0,2.0),(0.0,2.0),(0.0,0.0)])
     # dangle: little tail from (2,1)->(3,1)
     var dangle = LineString([(2.0,1.0),(3.0,1.0)])
-    var lines = MultiLineString([ring, dangle])
+    var lines = MultiLineString([ring.copy(), dangle.copy()])
 
-    var res = polygonize_full(lines)
+    var res = polygonize_full(Geometry(lines))
     var polys = res[0]
     var dangles = res[1]
     var cut_edges = res[2]
@@ -167,13 +167,13 @@ fn test_polygonize_full_basic() -> (Int32, Int32):
 
     var p: Int32 = 0
     var f: Int32 = 0
-    var g1 = expect("polygonize_full polygons size == 1", polys.geoms.size() == 1)
+    var g1 = expect("polygonize_full polygons size == 1", polys.geoms.__len__() == 1)
     p += g1[0]; f += g1[1]
-    var g2 = expect("polygonize_full dangles size == 1", dangles.lines.size() == 1)
+    var g2 = expect("polygonize_full dangles size == 1", dangles.lines.__len__() == 1)
     p += g2[0]; f += g2[1]
-    var g3 = expect("polygonize_full cut_edges size == 0", cut_edges.lines.size() == 0)
+    var g3 = expect("polygonize_full cut_edges size == 0", cut_edges.lines.__len__() == 0)
     p += g3[0]; f += g3[1]
-    var g4 = expect("polygonize_full invalid_rings size == 0", invalid_rings.lines.size() == 0)
+    var g4 = expect("polygonize_full invalid_rings size == 0", invalid_rings.lines.__len__() == 0)
     p += g4[0]; f += g4[1]
 
     return (p, f)

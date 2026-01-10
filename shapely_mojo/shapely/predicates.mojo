@@ -34,7 +34,7 @@ fn intersects(a: LineString, b: LineString) -> Bool:
 fn intersects(a: LineString, b: Polygon) -> Bool:
     # check edge intersections with shell and holes; if none, check endpoint inside
     # shell
-    var shell = b.shell
+    ref shell = b.shell
     var ring_ls = LineString(shell.coords)
     if any_segment_intersection(a, ring_ls):
         return True
@@ -44,7 +44,7 @@ fn intersects(a: LineString, b: Polygon) -> Bool:
         if any_segment_intersection(a, ring_ls):
             return True
     # endpoint containment
-    if a.coords.size() > 0:
+    if a.coords.__len__() > 0:
         var p0 = Point(a.coords[0][0], a.coords[0][1])
         if point_in_polygon(p0, b) != 0:
             return True
@@ -52,26 +52,24 @@ fn intersects(a: LineString, b: Polygon) -> Bool:
 
 
 fn intersects(a: Geometry, b: Geometry) -> Bool:
-    var ta = a.__type_name__()
-    var tb = b.__type_name__()
-    if ta == "Point" and tb == "Point":
-        return intersects(unsafe_bitcast[Point](a), unsafe_bitcast[Point](b))
-    if ta == "Point" and tb == "LineString":
-        return intersects(unsafe_bitcast[Point](a), unsafe_bitcast[LineString](b))
-    if ta == "LineString" and tb == "Point":
-        return intersects(unsafe_bitcast[LineString](a), unsafe_bitcast[Point](b))
-    if ta == "Point" and tb == "Polygon":
-        return intersects(unsafe_bitcast[Point](a), unsafe_bitcast[Polygon](b))
-    if ta == "Polygon" and tb == "Point":
-        return intersects(unsafe_bitcast[Polygon](a), unsafe_bitcast[Point](b))
-    if ta == "LineString" and tb == "LineString":
-        return intersects(unsafe_bitcast[LineString](a), unsafe_bitcast[LineString](b))
-    if ta == "LineString" and tb == "Polygon":
-        return intersects(unsafe_bitcast[LineString](a), unsafe_bitcast[Polygon](b))
-    if ta == "Polygon" and tb == "LineString":
-        return intersects(unsafe_bitcast[Polygon](a), unsafe_bitcast[LineString](b))
-    if ta == "Polygon" and tb == "Polygon":
-        return intersects(unsafe_bitcast[Polygon](a), unsafe_bitcast[Polygon](b))
+    if a.is_point() and b.is_point():
+        return intersects(a.as_point(), b.as_point())
+    if a.is_point() and b.is_linestring():
+        return intersects(a.as_point(), b.as_linestring())
+    if a.is_linestring() and b.is_point():
+        return intersects(a.as_linestring(), b.as_point())
+    if a.is_point() and b.is_polygon():
+        return intersects(a.as_point(), b.as_polygon())
+    if a.is_polygon() and b.is_point():
+        return intersects(a.as_polygon(), b.as_point())
+    if a.is_linestring() and b.is_linestring():
+        return intersects(a.as_linestring(), b.as_linestring())
+    if a.is_linestring() and b.is_polygon():
+        return intersects(a.as_linestring(), b.as_polygon())
+    if a.is_polygon() and b.is_linestring():
+        return intersects(a.as_polygon(), b.as_linestring())
+    if a.is_polygon() and b.is_polygon():
+        return intersects(a.as_polygon(), b.as_polygon())
     return False
 
 
@@ -119,10 +117,10 @@ fn intersects(a: Polygon, b: Polygon) -> Bool:
     if any_segment_intersection(a_shell_ls, b_shell_ls):
         return True
     # containment tests: one polygon contains a vertex of the other
-    if a.shell.coords.size() > 0:
+    if a.shell.coords.__len__() > 0:
         var p = Point(a.shell.coords[0][0], a.shell.coords[0][1])
         if point_in_polygon(p, b) != 0: return True
-    if b.shell.coords.size() > 0:
+    if b.shell.coords.__len__() > 0:
         var p2 = Point(b.shell.coords[0][0], b.shell.coords[0][1])
         if point_in_polygon(p2, a) != 0: return True
     return False
@@ -138,16 +136,14 @@ fn within(a: Point, b: Polygon) -> Bool:
 
 
 fn touches(a: Geometry, b: Geometry) -> Bool:
-    var ta = a.__type_name__()
-    var tb = b.__type_name__()
-    if ta == "Polygon" and tb == "Polygon":
-        return touches(unsafe_bitcast[Polygon](a), unsafe_bitcast[Polygon](b))
-    if ta == "LineString" and tb == "LineString":
-        return touches(unsafe_bitcast[LineString](a), unsafe_bitcast[LineString](b))
-    if ta == "Point" and tb == "Polygon":
-        return touches(unsafe_bitcast[Point](a), unsafe_bitcast[Polygon](b))
-    if ta == "Polygon" and tb == "Point":
-        return touches(unsafe_bitcast[Polygon](a), unsafe_bitcast[Point](b))
+    if a.is_polygon() and b.is_polygon():
+        return touches(a.as_polygon(), b.as_polygon())
+    if a.is_linestring() and b.is_linestring():
+        return touches(a.as_linestring(), b.as_linestring())
+    if a.is_point() and b.is_polygon():
+        return touches(a.as_point(), b.as_polygon())
+    if a.is_polygon() and b.is_point():
+        return touches(a.as_polygon(), b.as_point())
     return False
 
 
@@ -160,18 +156,14 @@ fn disjoint(a: Geometry, b: Geometry) -> Bool:
 
 
 fn overlaps(a: Geometry, b: Geometry) -> Bool:
-    var ta = a.__type_name__()
-    var tb = b.__type_name__()
-    if ta == "Polygon" and tb == "Polygon":
-        return overlaps(unsafe_bitcast[Polygon](a), unsafe_bitcast[Polygon](b))
+    if a.is_polygon() and b.is_polygon():
+        return overlaps(a.as_polygon(), b.as_polygon())
     return False
 
 
 fn crosses(a: Geometry, b: Geometry) -> Bool:
-    var ta = a.__type_name__()
-    var tb = b.__type_name__()
-    if ta == "LineString" and tb == "LineString":
-        return crosses(unsafe_bitcast[LineString](a), unsafe_bitcast[LineString](b))
+    if a.is_linestring() and b.is_linestring():
+        return crosses(a.as_linestring(), b.as_linestring())
     return False
 
 
@@ -196,14 +188,14 @@ fn touches(a: LineString, b: LineString) -> Bool:
         return False
     # heuristic: if any endpoint of one lies on the other, and there is no proper interior crossing
     var end_on_other = False
-    if a.coords.size() > 0:
+    if a.coords.__len__() > 0:
         var a0 = a.coords[0]
-        var aN = a.coords[a.coords.size() - 1]
+        var aN = a.coords[a.coords.__len__() - 1]
         if point_on_linestring(Point(a0[0], a0[1]), b): end_on_other = True
         if point_on_linestring(Point(aN[0], aN[1]), b): end_on_other = True
-    if b.coords.size() > 0:
+    if b.coords.__len__() > 0:
         var b0 = b.coords[0]
-        var bN = b.coords[b.coords.size() - 1]
+        var bN = b.coords[b.coords.__len__() - 1]
         if point_on_linestring(Point(b0[0], b0[1]), a): end_on_other = True
         if point_on_linestring(Point(bN[0], bN[1]), a): end_on_other = True
     if not end_on_other:
@@ -218,8 +210,7 @@ fn touches(a: Polygon, b: Polygon) -> Bool:
     if not intersects(a, b):
         return False
     var inter_g = _poly_intersection(a, b)
-    var t = inter_g.__type_name__()
-    if t == "GeometryCollection":
+    if inter_g.is_geometrycollection():
         return True
     # area zero -> touch; positive -> not touch
     var ar = _area(inter_g)
@@ -251,12 +242,10 @@ fn crosses(a: LineString, b: LineString) -> Bool:
 
 
 fn contains(a: Geometry, b: Geometry) -> Bool:
-    var ta = a.__type_name__()
-    var tb = b.__type_name__()
-    if ta == "Polygon" and tb == "Point":
-        return contains(unsafe_bitcast[Polygon](a), unsafe_bitcast[Point](b))
-    if ta == "Polygon" and tb == "Polygon":
-        return contains(unsafe_bitcast[Polygon](a), unsafe_bitcast[Polygon](b))
+    if a.is_polygon() and b.is_point():
+        return contains(a.as_polygon(), b.as_point())
+    if a.is_polygon() and b.is_polygon():
+        return contains(a.as_polygon(), b.as_polygon())
     return False
 
 
@@ -273,13 +262,11 @@ fn within(a: Geometry, b: Geometry) -> Bool:
 
 
 fn covers(a: Geometry, b: Geometry) -> Bool:
-    var ta = a.__type_name__()
-    var tb = b.__type_name__()
-    if ta == "Polygon" and tb == "Point":
+    if a.is_polygon() and b.is_point():
         # boundary counts as covered
-        return point_in_polygon(unsafe_bitcast[Point](b), unsafe_bitcast[Polygon](a)) != 0
-    if ta == "Polygon" and tb == "Polygon":
-        return covers(unsafe_bitcast[Polygon](a), unsafe_bitcast[Polygon](b))
+        return point_in_polygon(b.as_point(), a.as_polygon()) != 0
+    if a.is_polygon() and b.is_polygon():
+        return covers(a.as_polygon(), b.as_polygon())
     return False
 
 
@@ -306,10 +293,8 @@ fn contains_properly(a: Polygon, b: Point) -> Bool:
 
 
 fn contains_properly(a: Geometry, b: Geometry) -> Bool:
-    var ta = a.__type_name__()
-    var tb = b.__type_name__()
-    if ta == "Polygon" and tb == "Polygon":
-        return contains_properly(unsafe_bitcast[Polygon](a), unsafe_bitcast[Polygon](b))
-    if ta == "Polygon" and tb == "Point":
-        return contains_properly(unsafe_bitcast[Polygon](a), unsafe_bitcast[Point](b))
+    if a.is_polygon() and b.is_polygon():
+        return contains_properly(a.as_polygon(), b.as_polygon())
+    if a.is_polygon() and b.is_point():
+        return contains_properly(a.as_polygon(), b.as_point())
     return False
