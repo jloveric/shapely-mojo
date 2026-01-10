@@ -83,12 +83,18 @@ fn _polygonize_add_unique_edge(
 
 
 fn _polygonize_next_edge(ref adj: List[List[Int32]], ref edges: List[PolygonizeDEdge], at_vertex: Int32, bx: Float64, by: Float64) -> Int32:
-    var best_idx: Int32 = -1
-    var best_cross = -1.0e308
-    var best_dot = -1.0e308
     if Int(at_vertex) >= adj.__len__():
         return -1
     ref cand = adj[at_vertex]
+    # Prefer not to immediately backtrack along the reverse edge we just came from.
+    # The reverse edge is characterized by being colinear with (bx, by) and having
+    # positive dot-product.
+    var best_idx: Int32 = -1
+    var best_cross = -1.0e308
+    var best_dot = -1.0e308
+    var best_idx_fallback: Int32 = -1
+    var best_cross_fallback = -1.0e308
+    var best_dot_fallback = -1.0e308
     var i = 0
     while i < cand.__len__():
         var ei = cand[i]
@@ -99,6 +105,23 @@ fn _polygonize_next_edge(ref adj: List[List[Int32]], ref edges: List[PolygonizeD
         var w_y = edges[ei].dy
         var cr = bx * w_y - by * w_x
         var dt = bx * w_x + by * w_y
+        # track fallback (including back-edge)
+        if cr > 0.0:
+            if best_idx_fallback == -1 or best_cross_fallback < 0.0 or dt > best_dot_fallback:
+                best_idx_fallback = ei
+                best_cross_fallback = cr
+                best_dot_fallback = dt
+        elif best_idx_fallback == -1 and best_cross_fallback < 0.0:
+            if dt > best_dot_fallback:
+                best_idx_fallback = ei
+                best_cross_fallback = cr
+                best_dot_fallback = dt
+
+        # skip immediate backtracking if possible
+        if cr == 0.0 and dt > 0.0:
+            i += 1
+            continue
+
         if cr > 0.0:
             if best_idx == -1 or best_cross < 0.0 or dt > best_dot:
                 best_idx = ei
@@ -110,7 +133,9 @@ fn _polygonize_next_edge(ref adj: List[List[Int32]], ref edges: List[PolygonizeD
                 best_cross = cr
                 best_dot = dt
         i += 1
-    return best_idx
+    if best_idx != -1:
+        return best_idx
+    return best_idx_fallback
 
 
 fn linemerge(lines) -> Geometry:
@@ -236,8 +261,16 @@ fn polygonize(lines) -> GeometryCollection:
                         edges[eidx].alive = False
                         deg[vi] -= 1
                         var to = edges[eidx].dst
-                        # remove back edge degree; we won't search reverse adjacency for exact back edge index, just decrement degree
-                        if deg[to] > 0: deg[to] -= 1
+                        # Also remove the reverse directed edge to keep degree bookkeeping consistent.
+                        var rp = 0
+                        while rp < adj[to].__len__():
+                            var ridx = adj[to][rp]
+                            if edges[ridx].alive and edges[ridx].dst == Int32(vi):
+                                edges[ridx].alive = False
+                                if deg[to] > 0:
+                                    deg[to] -= 1
+                                break
+                            rp += 1
                         changed = True
                     p += 1
                 adj[vi] = List[Int32]()
@@ -261,7 +294,7 @@ fn polygonize(lines) -> GeometryCollection:
             var vsrc = edges[cur_e].src
             ring.append((verts[vsrc][0], verts[vsrc][1]))
             var vdst = edges[cur_e].dst
-            if vdst == start_v and ring.__len__() >= 3:
+            if vdst == start_v and ring.__len__() >= 4:
                 ring.append((verts[start_v][0], verts[start_v][1]))
                 closed = True
                 break
@@ -442,7 +475,16 @@ fn polygonize_full(lines: Geometry) -> (GeometryCollection, MultiLineString, Mul
                         edges[eidx].alive = False
                         deg[vi] -= 1
                         var to = edges[eidx].dst
-                        if deg[to] > 0: deg[to] -= 1
+                        # Also remove the reverse directed edge to keep degree bookkeeping consistent.
+                        var rp = 0
+                        while rp < adj[to].__len__():
+                            var ridx = adj[to][rp]
+                            if edges[ridx].alive and edges[ridx].dst == Int32(vi):
+                                edges[ridx].alive = False
+                                if deg[to] > 0:
+                                    deg[to] -= 1
+                                break
+                            rp += 1
                         changed = True
                     p += 1
                 adj[vi] = List[Int32]()
@@ -466,7 +508,7 @@ fn polygonize_full(lines: Geometry) -> (GeometryCollection, MultiLineString, Mul
             var vsrc = edges[cur_e].src
             ring.append((verts[vsrc][0], verts[vsrc][1]))
             var vdst = edges[cur_e].dst
-            if vdst == start_v and ring.__len__() >= 3:
+            if vdst == start_v and ring.__len__() >= 4:
                 ring.append((verts[start_v][0], verts[start_v][1]))
                 closed = True
                 break
