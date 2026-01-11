@@ -144,7 +144,7 @@ fn emit_edge(
     var insideA_R = point_in_polygon(make_point(rx, ry), a) != 0
     var insideB_R = point_in_polygon(make_point(rx, ry), b) != 0
 
-    var include = False
+    var include: Bool
     if op == 0:
         include = (insideA_L and insideB_L) and not (insideA_R and insideB_R)
     elif op == 1:
@@ -164,12 +164,12 @@ fn emit_edge(
     var e_idx = Int32(edges.__len__())
     edges.append(
         DEdge(
-            src=s_id,
-            dst=d_id,
-            dx=dx,
-            dy=dy,
-            include=include,
-            used=False,
+            s_id,
+            d_id,
+            dx,
+            dy,
+            include,
+            False,
         )
     )
     used.append(False)
@@ -371,9 +371,9 @@ fn build_rings(
             if first[0] != last[0] or first[1] != last[1]:
                 ring.append(first)
         if closed and ring.__len__() >= 4:
-            rings.append(ring)
+            rings.append(ring.copy())
         e += 1
-    return rings
+    return rings.copy()
 
 
 fn assemble_polygons(
@@ -439,43 +439,43 @@ fn assemble_polygons(
 
 fn overlay_intersection(a: Polygon, b: Polygon) -> Geometry:
     var tmp0 = build_edges(a, b, 0)
-    var verts = ^tmp0[0]
-    var edges = ^tmp0[1]
-    var used = ^tmp0[2]
-    var adj = ^tmp0[3]
-    var u2 = ^used
+    var verts = tmp0[0].copy()
+    var edges = tmp0[1].copy()
+    var used = tmp0[2].copy()
+    var adj = tmp0[3].copy()
+    var u2 = used.copy()
     var rings = build_rings(verts, edges, u2, adj)
     return Geometry(assemble_polygons(rings))
 
 
 fn overlay_union(a: Polygon, b: Polygon) -> Geometry:
     var tmp1 = build_edges(a, b, 1)
-    var verts = ^tmp1[0]
-    var edges = ^tmp1[1]
-    var used = ^tmp1[2]
-    var adj = ^tmp1[3]
-    var u2 = ^used
+    var verts = tmp1[0].copy()
+    var edges = tmp1[1].copy()
+    var used = tmp1[2].copy()
+    var adj = tmp1[3].copy()
+    var u2 = used.copy()
     var rings = build_rings(verts, edges, u2, adj)
     return Geometry(assemble_polygons(rings))
 
 
 fn overlay_difference(a: Polygon, b: Polygon) -> Geometry:
     var tmp2 = build_edges(a, b, 2)
-    var verts = ^tmp2[0]
-    var edges = ^tmp2[1]
-    var used = ^tmp2[2]
-    var adj = ^tmp2[3]
-    var u2 = ^used
+    var verts = tmp2[0].copy()
+    var edges = tmp2[1].copy()
+    var used = tmp2[2].copy()
+    var adj = tmp2[3].copy()
+    var u2 = used.copy()
     var rings = build_rings(verts, edges, u2, adj)
     return Geometry(assemble_polygons(rings))
 
 
 fn overlay_xor(a: Polygon, b: Polygon) -> Geometry:
     var tmp3 = build_edges(a, b, 3)
-    var verts = ^tmp3[0]
-    var edges = ^tmp3[1]
-    var used = ^tmp3[2]
-    var adj = ^tmp3[3]
-    var u2 = ^used
+    var verts = tmp3[0].copy()
+    var edges = tmp3[1].copy()
+    var used = tmp3[2].copy()
+    var adj = tmp3[3].copy()
+    var u2 = used.copy()
     var rings = build_rings(verts, edges, u2, adj)
     return Geometry(assemble_polygons(rings))
