@@ -43,7 +43,7 @@ struct LineString(Copyable, Movable):
     var coords: List[Tuple[Float64, Float64]]
 
     fn __init__(out self, coords: List[Tuple[Float64, Float64]]):
-        self.coords = coords
+        self.coords = coords.copy()
 
     fn is_empty(self) -> Bool:
         return self.coords.__len__() == 0
@@ -81,7 +81,7 @@ struct LinearRing(Copyable, Movable):
     var coords: List[Tuple[Float64, Float64]]
 
     fn __init__(out self, coords: List[Tuple[Float64, Float64]]):
-        self.coords = coords
+        self.coords = coords.copy()
 
     fn is_empty(self) -> Bool:
         return self.coords.__len__() == 0
@@ -176,7 +176,7 @@ struct GeometryCollection(Copyable, Movable):
     var geoms: List[Geometry]
 
     fn __init__(out self, geoms: List[Geometry]):
-        self.geoms = geoms
+        self.geoms = geoms.copy()
 
     fn is_empty(self) -> Bool:
         return self.geoms.__len__() == 0
@@ -223,7 +223,7 @@ struct MultiPoint(Copyable, Movable):
     var points: List[Point]
 
     fn __init__(out self, points: List[Point]):
-        self.points = points
+        self.points = points.copy()
 
     fn to_wkt(self) -> String:
         var s = "MULTIPOINT ("
@@ -258,7 +258,7 @@ struct MultiLineString(Copyable, Movable):
     var lines: List[LineString]
 
     fn __init__(out self, lines: List[LineString]):
-        self.lines = lines
+        self.lines = lines.copy()
 
     fn to_wkt(self) -> String:
         var s = "MULTILINESTRING ("
@@ -309,7 +309,7 @@ struct MultiPolygon(Copyable, Movable):
     var polys: List[Polygon]
 
     fn __init__(out self, polys: List[Polygon]):
-        self.polys = polys
+        self.polys = polys.copy()
 
     fn to_wkt(self) -> String:
         var s = "MULTIPOLYGON ("

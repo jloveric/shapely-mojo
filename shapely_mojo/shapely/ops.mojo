@@ -519,7 +519,7 @@ fn polygonize_full(lines: Geometry) -> (GeometryCollection, MultiLineString, Mul
             by = -edges[ne].dy
             cur_e = ne
         if closed and ring.__len__() >= 4:
-            rings.append(ring)
+            rings.append(ring.copy())
         e2 += 1
 
     # assemble polygons from rings (same as polygonize)
