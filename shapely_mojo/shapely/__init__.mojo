@@ -6,4 +6,5 @@ from shapely.set_operations import unary_union, union, intersection, difference,
 from shapely.wkt import to_wkt, from_wkt
 from shapely.wkb import to_wkb, from_wkb
 from shapely.strtree import STRtree
+from shapely.validation import make_valid
 
