@@ -338,8 +338,8 @@ fn buffer(
     if cap_style == CAP_ROUND:
         var nx = nxs[n - 2]
         var ny = nys[n - 2]
-        # arc from +n to -n around end, ccw
-        _append_arc_8(ring, pts[n - 1][0], pts[n - 1][1], distance, nx, ny, -nx, -ny, True)
+        # arc from +n to -n around end (exterior)
+        _append_arc_8(ring, pts[n - 1][0], pts[n - 1][1], distance, nx, ny, -nx, -ny, False)
 
     var rr = right.__len__() - 1
     while rr >= 0:
@@ -350,8 +350,8 @@ fn buffer(
     if cap_style == CAP_ROUND:
         var nx0 = nxs[0]
         var ny0 = nys[0]
-        # arc from -n to +n around start, ccw
-        _append_arc_8(ring, pts[0][0], pts[0][1], distance, -nx0, -ny0, nx0, ny0, True)
+        # arc from -n to +n around start (exterior)
+        _append_arc_8(ring, pts[0][0], pts[0][1], distance, -nx0, -ny0, nx0, ny0, False)
 
     if ring.__len__() > 0:
         var first = ring[0]
