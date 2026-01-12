@@ -1,5 +1,14 @@
 from shapely._geometry import Geometry
-from shapely.geometry import LineString, MultiLineString, LinearRing, Polygon
+from shapely.geometry import (
+    Point,
+    LineString,
+    MultiLineString,
+    LinearRing,
+    Polygon,
+    GeometryCollection,
+    MultiPoint,
+    MultiPolygon,
+)
 from shapely.set_operations import union
 
 
@@ -66,6 +75,208 @@ fn _dot(ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
 
 fn _cross(ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
     return ax * by - ay * bx
+
+
+fn _collect_coords(geom: Geometry, mut out: List[Tuple[Float64, Float64]]):
+    if geom.is_point():
+        var p = geom.as_point()
+        out.append((p.x, p.y))
+        return
+    if geom.is_linestring():
+        var ls = geom.as_linestring()
+        for c in ls.coords:
+            out.append(c)
+        return
+    if geom.is_polygon():
+        var p = geom.as_polygon()
+        for c in p.shell.coords:
+            out.append(c)
+        for h in p.holes:
+            for c in h.coords:
+                out.append(c)
+        return
+    if geom.is_multipoint():
+        var mp = geom.as_multipoint()
+        for p in mp.points:
+            out.append((p.x, p.y))
+        return
+    if geom.is_multilinestring():
+        var mls = geom.as_multilinestring()
+        for ln in mls.lines:
+            for c in ln.coords:
+                out.append(c)
+        return
+    if geom.is_multipolygon():
+        var mp = geom.as_multipolygon()
+        for poly in mp.polys:
+            for c in poly.shell.coords:
+                out.append(c)
+            for h in poly.holes:
+                for c in h.coords:
+                    out.append(c)
+        return
+    if geom.is_geometrycollection():
+        var gc = geom.as_geometrycollection()
+        for g in gc.geoms:
+            _collect_coords(g.copy(), out)
+        return
+
+
+fn _sort_points_lex(mut pts: List[Tuple[Float64, Float64]]):
+    # insertion sort
+    var i = 1
+    while i < pts.__len__():
+        var v = pts[i]
+        var j = i - 1
+        while j >= 0:
+            var pj = pts[j]
+            if pj[0] < v[0] or (pj[0] == v[0] and pj[1] <= v[1]):
+                break
+            pts[j + 1] = pj
+            j -= 1
+        pts[j + 1] = v
+        i += 1
+
+
+fn _unique_sorted_points(pts: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Float64]]:
+    if pts.__len__() == 0:
+        return pts.copy()
+    var out = List[Tuple[Float64, Float64]]()
+    out.append(pts[0])
+    var i = 1
+    while i < pts.__len__():
+        var p = pts[i]
+        var last = out[out.__len__() - 1]
+        if p[0] != last[0] or p[1] != last[1]:
+            out.append(p)
+        i += 1
+    return out.copy()
+
+
+fn _hull_ring(points: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Float64]]:
+    if points.__len__() <= 1:
+        return points.copy()
+    var pts = points.copy()
+    _sort_points_lex(pts)
+    pts = _unique_sorted_points(pts)
+    if pts.__len__() <= 1:
+        return pts.copy()
+
+    var lower = List[Tuple[Float64, Float64]]()
+    for p in pts:
+        while lower.__len__() >= 2:
+            var b = lower[lower.__len__() - 1]
+            var a = lower[lower.__len__() - 2]
+            var cr = _cross(b[0] - a[0], b[1] - a[1], p[0] - b[0], p[1] - b[1])
+            if cr > 0.0:
+                break
+            lower = lower[: lower.__len__() - 1]
+        lower.append(p)
+
+    var upper = List[Tuple[Float64, Float64]]()
+    var i = pts.__len__() - 1
+    while i >= 0:
+        var p = pts[i]
+        while upper.__len__() >= 2:
+            var b = upper[upper.__len__() - 1]
+            var a = upper[upper.__len__() - 2]
+            var cr = _cross(b[0] - a[0], b[1] - a[1], p[0] - b[0], p[1] - b[1])
+            if cr > 0.0:
+                break
+            upper = upper[: upper.__len__() - 1]
+        upper.append(p)
+        i -= 1
+
+    # concatenate without duplicating endpoints
+    var ring = List[Tuple[Float64, Float64]]()
+    var j = 0
+    while j < lower.__len__():
+        ring.append(lower[j])
+        j += 1
+    j = 1
+    while j + 1 < upper.__len__():
+        ring.append(upper[j])
+        j += 1
+    return ring.copy()
+
+
+fn _point_seg_dist2(px: Float64, py: Float64, ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
+    var vx = bx - ax
+    var vy = by - ay
+    var wx = px - ax
+    var wy = py - ay
+    var c1 = vx * wx + vy * wy
+    if c1 <= 0.0:
+        var dx = px - ax
+        var dy = py - ay
+        return dx * dx + dy * dy
+    var c2 = vx * vx + vy * vy
+    if c2 <= c1:
+        var dx2 = px - bx
+        var dy2 = py - by
+        return dx2 * dx2 + dy2 * dy2
+    var t = c1 / c2
+    var projx = ax + t * vx
+    var projy = ay + t * vy
+    var dx3 = px - projx
+    var dy3 = py - projy
+    return dx3 * dx3 + dy3 * dy3
+
+
+fn _simplify_linestring(ls: LineString, tol: Float64) -> LineString:
+    if ls.coords.__len__() <= 2:
+        return ls.copy()
+    if tol <= 0.0:
+        return ls.copy()
+    var tol2 = tol * tol
+    var n = ls.coords.__len__()
+    var keep = List[Bool]()
+    var i = 0
+    while i < n:
+        keep.append(False)
+        i += 1
+    keep[0] = True
+    keep[n - 1] = True
+
+    var stack_a = List[Int]()
+    var stack_b = List[Int]()
+    stack_a.append(0)
+    stack_b.append(n - 1)
+    while stack_a.__len__() > 0:
+        var a = stack_a[stack_a.__len__() - 1]
+        var b = stack_b[stack_b.__len__() - 1]
+        stack_a = stack_a[: stack_a.__len__() - 1]
+        stack_b = stack_b[: stack_b.__len__() - 1]
+
+        var ax = ls.coords[a][0]
+        var ay = ls.coords[a][1]
+        var bx = ls.coords[b][0]
+        var by = ls.coords[b][1]
+        var maxd = -1.0
+        var maxi = -1
+        var j = a + 1
+        while j < b:
+            var px = ls.coords[j][0]
+            var py = ls.coords[j][1]
+            var d2 = _point_seg_dist2(px, py, ax, ay, bx, by)
+            if d2 > maxd:
+                maxd = d2
+                maxi = j
+            j += 1
+        if maxd > tol2 and maxi != -1:
+            keep[maxi] = True
+            stack_a.append(a)
+            stack_b.append(maxi)
+            stack_a.append(maxi)
+            stack_b.append(b)
+
+    var out = List[Tuple[Float64, Float64]]()
+    i = 0
+    while i < n:
+        if keep[i]:
+            out.append(ls.coords[i])
+        i += 1
+    return LineString(out)
 
 
 fn _line_intersection(
@@ -390,8 +601,32 @@ fn buffer(
 
 
 fn simplify(geom: Geometry, _tolerance: Float64, _preserve_topology: Bool = True) -> Geometry:
-    return geom
+    if geom.is_linestring():
+        return Geometry(_simplify_linestring(geom.as_linestring(), _tolerance))
+    if geom.is_multilinestring():
+        var mls = geom.as_multilinestring()
+        var out = List[LineString]()
+        for ln in mls.lines:
+            out.append(_simplify_linestring(ln.copy(), _tolerance))
+        return Geometry(MultiLineString(out))
+    return geom.copy()
 
 
 fn convex_hull(geom: Geometry) -> Geometry:
-    return geom
+    var pts = List[Tuple[Float64, Float64]]()
+    _collect_coords(geom.copy(), pts)
+    if pts.__len__() == 0:
+        return Geometry(GeometryCollection([]))
+    var ring = _hull_ring(pts)
+    if ring.__len__() == 1:
+        return Geometry(Point(ring[0][0], ring[0][1]))
+    if ring.__len__() == 2:
+        return Geometry(LineString([ring[0], ring[1]]))
+    if ring.__len__() > 2:
+        var out = ring.copy()
+        var first = out[0]
+        var last = out[out.__len__() - 1]
+        if first[0] != last[0] or first[1] != last[1]:
+            out.append(first)
+        return Geometry(Polygon(LinearRing(out)))
+    return Geometry(GeometryCollection([]))

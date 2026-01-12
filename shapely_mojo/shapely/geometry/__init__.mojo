@@ -225,6 +225,9 @@ struct MultiPoint(Copyable, Movable):
     fn __init__(out self, points: List[Point]):
         self.points = points.copy()
 
+    fn is_empty(self) -> Bool:
+        return self.points.__len__() == 0
+
     fn to_wkt(self) -> String:
         var s = "MULTIPOINT ("
         var first = True
@@ -259,6 +262,9 @@ struct MultiLineString(Copyable, Movable):
 
     fn __init__(out self, lines: List[LineString]):
         self.lines = lines.copy()
+
+    fn is_empty(self) -> Bool:
+        return self.lines.__len__() == 0
 
     fn to_wkt(self) -> String:
         var s = "MULTILINESTRING ("
@@ -310,6 +316,9 @@ struct MultiPolygon(Copyable, Movable):
 
     fn __init__(out self, polys: List[Polygon]):
         self.polys = polys.copy()
+
+    fn is_empty(self) -> Bool:
+        return self.polys.__len__() == 0
 
     fn to_wkt(self) -> String:
         var s = "MULTIPOLYGON ("

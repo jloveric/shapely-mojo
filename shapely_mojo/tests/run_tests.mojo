@@ -4,6 +4,7 @@ from shapely.set_operations import union, intersection, difference, symmetric_di
 from shapely.measurement import area, distance
 from shapely.strtree import STRtree
 from shapely.ops import polygonize_full
+from shapely.constructive import simplify, convex_hull
 
 
 fn approx_eq(a: Float64, b: Float64, eps: Float64 = 1e-9) -> Bool:
@@ -58,6 +59,50 @@ fn test_set_operations() -> (Int32, Int32):
     var uu = unary_union(items)
     var t6 = expect("unary_union area == 7", approx_eq(area(uu), 7.0))
     p += t6[0]; f += t6[1]
+
+    return (p, f)
+
+
+fn test_constructive_convex_hull_simplify() -> (Int32, Int32):
+    var p: Int32 = 0
+    var f: Int32 = 0
+
+    # convex_hull: empty -> GeometryCollection empty
+    var empty_ls = LineString([])
+    var h0 = convex_hull(Geometry(empty_ls.copy()))
+    var t0 = expect("convex_hull(empty) is geometrycollection", h0.is_geometrycollection())
+    p += t0[0]; f += t0[1]
+    var t0b = expect("convex_hull(empty) empty", h0.is_empty())
+    p += t0b[0]; f += t0b[1]
+
+    # convex_hull: collinear -> LineString
+    var col = LineString([(0.0,0.0),(1.0,0.0),(2.0,0.0)])
+    var h1 = convex_hull(Geometry(col.copy()))
+    var t1 = expect("convex_hull(collinear) is linestring", h1.is_linestring())
+    p += t1[0]; f += t1[1]
+    var t1b = expect("convex_hull(collinear) has 2 coords", h1.as_linestring().coords.__len__() == 2)
+    p += t1b[0]; f += t1b[1]
+
+    # convex_hull: triangle -> Polygon
+    var tri = Polygon(LinearRing([(0.0,0.0),(2.0,0.0),(0.0,2.0),(0.0,0.0)]))
+    var h2 = convex_hull(Geometry(tri.copy()))
+    var t2 = expect("convex_hull(triangle) is polygon", h2.is_polygon())
+    p += t2[0]; f += t2[1]
+    var t2b = expect("convex_hull(triangle) area == 2", approx_eq(area(h2), 2.0))
+    p += t2b[0]; f += t2b[1]
+
+    # simplify: reduces a "wiggly" line
+    var wig = LineString([(0.0,0.0),(1.0,0.05),(2.0,0.0),(3.0,0.05),(4.0,0.0)])
+    var s0 = simplify(Geometry(wig.copy()), 0.1)
+    var t3 = expect("simplify returns linestring", s0.is_linestring())
+    p += t3[0]; f += t3[1]
+    var t3b = expect("simplify reduces points", s0.as_linestring().coords.__len__() < wig.coords.__len__())
+    p += t3b[0]; f += t3b[1]
+
+    # simplify tolerance 0 leaves unchanged
+    var s1 = simplify(Geometry(wig.copy()), 0.0)
+    var t4 = expect("simplify(tol=0) keeps points", s1.as_linestring().coords.__len__() == wig.coords.__len__())
+    p += t4[0]; f += t4[1]
 
     return (p, f)
 
@@ -211,6 +256,11 @@ fn main():
     var r4 = test_polygonize_full_basic()
     print("END test_polygonize_full_basic")
     passed += r4[0]; failed += r4[1]
+
+    print("START test_constructive_convex_hull_simplify")
+    var r5 = test_constructive_convex_hull_simplify()
+    print("END test_constructive_convex_hull_simplify")
+    passed += r5[0]; failed += r5[1]
 
     print("\nSummary: ")
     print(("passed = " + passed.__str__()) + (", failed = " + failed.__str__()))
