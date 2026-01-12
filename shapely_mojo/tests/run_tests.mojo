@@ -5,6 +5,7 @@ from shapely.measurement import area, distance
 from shapely.strtree import STRtree
 from shapely.ops import polygonize_full
 from shapely.constructive import simplify, convex_hull
+from shapely.validation import make_valid
 
 
 fn approx_eq(a: Float64, b: Float64, eps: Float64 = 1e-9) -> Bool:
@@ -59,6 +60,37 @@ fn test_set_operations() -> (Int32, Int32):
     var uu = unary_union(items)
     var t6 = expect("unary_union area == 7", approx_eq(area(uu), 7.0))
     p += t6[0]; f += t6[1]
+
+    return (p, f)
+
+
+fn test_make_valid_basic() -> (Int32, Int32):
+    var p: Int32 = 0
+    var f: Int32 = 0
+
+    # classic bowtie (self-intersecting) polygon
+    var bow = Polygon(LinearRing([(0.0,0.0),(2.0,2.0),(0.0,2.0),(2.0,0.0),(0.0,0.0)]))
+    var mv = make_valid(Geometry(bow.copy()))
+    print("make_valid(bowtie) -> " + mv.to_wkt())
+    var is_mp = mv.is_multipolygon()
+    var t0 = expect("make_valid(bowtie) is multipolygon", is_mp)
+    p += t0[0]; f += t0[1]
+    if is_mp:
+        var t0b = expect("make_valid(bowtie) parts == 2", mv.as_multipolygon().polys.__len__() == 2)
+        p += t0b[0]; f += t0b[1]
+    else:
+        var t0c = expect("make_valid(bowtie) parts == 2", False)
+        p += t0c[0]; f += t0c[1]
+
+    # open ring should be closed by make_valid
+    var open_shell = LinearRing([(0.0,0.0),(2.0,0.0),(2.0,2.0),(0.0,2.0)])
+    var p2 = Polygon(open_shell)
+    var mv2 = make_valid(Geometry(p2.copy()))
+    var t1 = expect("make_valid(open shell) returns polygon or multipolygon", mv2.is_polygon() or mv2.is_multipolygon())
+    p += t1[0]; f += t1[1]
+    var nonempty = not mv2.is_empty()
+    var t1b = expect("make_valid(open shell) non-empty", nonempty)
+    p += t1b[0]; f += t1b[1]
 
     return (p, f)
 
@@ -288,6 +320,11 @@ fn main():
     var r5 = test_constructive_convex_hull_simplify()
     print("END test_constructive_convex_hull_simplify")
     passed += r5[0]; failed += r5[1]
+
+    print("START test_make_valid_basic")
+    var r6 = test_make_valid_basic()
+    print("END test_make_valid_basic")
+    passed += r6[0]; failed += r6[1]
 
     print("\nSummary: ")
     print(("passed = " + passed.__str__()) + (", failed = " + failed.__str__()))

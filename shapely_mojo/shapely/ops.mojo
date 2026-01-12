@@ -90,10 +90,10 @@ fn _polygonize_next_edge(ref adj: List[List[Int32]], ref edges: List[PolygonizeD
     # The reverse edge is characterized by being colinear with (bx, by) and having
     # positive dot-product.
     var best_idx: Int32 = -1
-    var best_cross = -1.0e308
+    var best_cross = 1.0e308
     var best_dot = -1.0e308
     var best_idx_fallback: Int32 = -1
-    var best_cross_fallback = -1.0e308
+    var best_cross_fallback = 1.0e308
     var best_dot_fallback = -1.0e308
     var i = 0
     while i < cand.__len__():
@@ -106,13 +106,14 @@ fn _polygonize_next_edge(ref adj: List[List[Int32]], ref edges: List[PolygonizeD
         var cr = bx * w_y - by * w_x
         var dt = bx * w_x + by * w_y
         # track fallback (including back-edge)
-        if cr > 0.0:
-            if best_idx_fallback == -1 or best_cross_fallback < 0.0 or dt > best_dot_fallback:
+        if cr < 0.0:
+            # prefer smallest clockwise turn (cr closest to 0 from below)
+            if best_idx_fallback == -1 or best_cross_fallback >= 0.0 or cr > best_cross_fallback or (cr == best_cross_fallback and dt > best_dot_fallback):
                 best_idx_fallback = ei
                 best_cross_fallback = cr
                 best_dot_fallback = dt
-        elif best_idx_fallback == -1 and best_cross_fallback < 0.0:
-            if dt > best_dot_fallback:
+        elif best_idx_fallback == -1 and best_cross_fallback >= 0.0:
+            if cr < best_cross_fallback or (cr == best_cross_fallback and dt > best_dot_fallback):
                 best_idx_fallback = ei
                 best_cross_fallback = cr
                 best_dot_fallback = dt
@@ -122,13 +123,13 @@ fn _polygonize_next_edge(ref adj: List[List[Int32]], ref edges: List[PolygonizeD
             i += 1
             continue
 
-        if cr > 0.0:
-            if best_idx == -1 or best_cross < 0.0 or dt > best_dot:
+        if cr < 0.0:
+            if best_idx == -1 or best_cross >= 0.0 or cr > best_cross or (cr == best_cross and dt > best_dot):
                 best_idx = ei
                 best_cross = cr
                 best_dot = dt
-        elif best_idx == -1 and best_cross < 0.0:
-            if dt > best_dot:
+        elif best_idx == -1 and best_cross >= 0.0:
+            if cr < best_cross or (cr == best_cross and dt > best_dot):
                 best_idx = ei
                 best_cross = cr
                 best_dot = dt
@@ -545,7 +546,7 @@ fn polygonize_full(lines: Geometry) -> (GeometryCollection, MultiLineString, Mul
                 ref hr = holes[hi2]
                 if hr.coords.__len__() > 0:
                     var pt = hr.coords[0]
-                    var inside = point_in_ring(Point(pt[0], pt[1]), sh) != 0
+                    var inside = point_in_ring(Point(pt[0], pt[1]), sh) == 1
                     if inside:
                         sh_holes.append(hr.copy())
                         used_hole[hi2] = True
