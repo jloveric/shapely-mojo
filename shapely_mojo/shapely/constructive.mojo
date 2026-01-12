@@ -396,6 +396,10 @@ fn buffer(geom: Geometry, _distance: Float64, _quad_segs: Int32 = 8) -> Geometry
         return buffer(geom.as_linestring(), _distance, _quad_segs)
     if geom.is_multilinestring():
         return buffer(geom.as_multilinestring(), _distance, _quad_segs)
+    if geom.is_polygon():
+        return buffer(geom.as_polygon(), _distance, _quad_segs)
+    if geom.is_multipolygon():
+        return buffer(geom.as_multipolygon(), _distance, _quad_segs)
     return geom.copy()
 
 
@@ -413,6 +417,10 @@ fn buffer(
         return buffer(geom.as_linestring(), _distance, _quad_segs, cap_style, join_style, mitre_limit)
     if geom.is_multilinestring():
         return buffer(geom.as_multilinestring(), _distance, _quad_segs, cap_style, join_style, mitre_limit)
+    if geom.is_polygon():
+        return buffer(geom.as_polygon(), _distance, _quad_segs, cap_style, join_style, mitre_limit)
+    if geom.is_multipolygon():
+        return buffer(geom.as_multipolygon(), _distance, _quad_segs, cap_style, join_style, mitre_limit)
     return geom.copy()
 
 
@@ -592,6 +600,62 @@ fn buffer(
             ring.append(first)
 
     return Geometry(Polygon(LinearRing(ring)))
+
+
+fn buffer(p: Polygon, distance: Float64, quad_segs: Int32 = 8) -> Geometry:
+    return buffer(p, distance, quad_segs, CAP_ROUND, JOIN_ROUND, 5.0)
+
+
+fn buffer(
+    p: Polygon,
+    distance: Float64,
+    quad_segs: Int32,
+    cap_style: CapStyle,
+    join_style: JoinStyle,
+    mitre_limit: Float64 = 5.0,
+) -> Geometry:
+    if distance <= 0.0:
+        return Geometry(p.copy())
+    if p.is_empty():
+        return Geometry(_empty_polygon())
+
+    # Best-effort polygon buffer using boundary buffering.
+    # Expand exterior and shrink/fill holes by unioning with buffered boundary rings.
+    var acc = Geometry(p.copy())
+
+    var shell_ls = LineString(p.shell.coords.copy())
+    acc = union(acc, buffer(shell_ls, distance, quad_segs, cap_style, join_style, mitre_limit))
+
+    for h in p.holes:
+        var hole_ls = LineString(h.coords.copy())
+        acc = union(acc, buffer(hole_ls, distance, quad_segs, cap_style, join_style, mitre_limit))
+
+    return acc.copy()
+
+
+fn buffer(mp: MultiPolygon, distance: Float64, quad_segs: Int32 = 8) -> Geometry:
+    return buffer(mp, distance, quad_segs, CAP_ROUND, JOIN_ROUND, 5.0)
+
+
+fn buffer(
+    mp: MultiPolygon,
+    distance: Float64,
+    quad_segs: Int32,
+    cap_style: CapStyle,
+    join_style: JoinStyle,
+    mitre_limit: Float64 = 5.0,
+) -> Geometry:
+    if distance <= 0.0:
+        return Geometry(mp.copy())
+    var polys = List[Polygon]()
+    for p in mp.polys:
+        var g = buffer(p.copy(), distance, quad_segs, cap_style, join_style, mitre_limit)
+        if g.is_polygon() and not g.is_empty():
+            polys.append(g.as_polygon())
+        elif g.is_multipolygon():
+            for pp in g.as_multipolygon().polys:
+                polys.append(pp.copy())
+    return Geometry(MultiPolygon(polys))
 
 
 fn buffer(mls: MultiLineString, distance: Float64, quad_segs: Int32 = 8) -> Geometry:

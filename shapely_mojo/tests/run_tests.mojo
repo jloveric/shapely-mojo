@@ -6,6 +6,7 @@ from shapely.strtree import STRtree
 from shapely.ops import polygonize_full
 from shapely.constructive import simplify, convex_hull
 from shapely.validation import make_valid
+from shapely.constructive import buffer
 
 
 fn approx_eq(a: Float64, b: Float64, eps: Float64 = 1e-9) -> Bool:
@@ -60,6 +61,43 @@ fn test_set_operations() -> (Int32, Int32):
     var uu = unary_union(items)
     var t6 = expect("unary_union area == 7", approx_eq(area(uu), 7.0))
     p += t6[0]; f += t6[1]
+
+    return (p, f)
+
+
+fn test_buffer_polygon_basic() -> (Int32, Int32):
+    var p: Int32 = 0
+    var f: Int32 = 0
+
+    # buffer should expand polygon area
+    var sq = mk_square(0.0, 0.0, 2.0, 2.0)
+    var a0 = area(Geometry(sq.copy()))
+    var b = buffer(Geometry(sq.copy()), 0.5)
+    var a1 = area(b)
+    var t0 = expect("buffer(polygon) increases area", a1 > a0)
+    p += t0[0]; f += t0[1]
+
+    # polygon with small hole: buffering boundary should tend to fill/shrink hole
+    var shell = LinearRing([(0.0,0.0),(4.0,0.0),(4.0,4.0),(0.0,4.0),(0.0,0.0)])
+    var hole = LinearRing([(1.0,1.0),(1.4,1.0),(1.4,1.4),(1.0,1.4),(1.0,1.0)])
+    var poly = Polygon(shell.copy(), [hole.copy()])
+    var b2 = buffer(Geometry(poly.copy()), 0.6)
+    var t1 = expect("buffer(polygon w/ hole) returns polygon/multipolygon", b2.is_polygon() or b2.is_multipolygon())
+    p += t1[0]; f += t1[1]
+    var t1b = expect("buffer(polygon w/ hole) non-empty", not b2.is_empty())
+    p += t1b[0]; f += t1b[1]
+
+    # multipolygon: buffering yields multipolygon with at least one part
+    var mp = MultiPolygon([sq.copy(), mk_square(3.0, 0.0, 5.0, 2.0).copy()])
+    var b3 = buffer(Geometry(mp.copy()), 0.5)
+    var t2 = expect("buffer(multipolygon) returns multipolygon", b3.is_multipolygon())
+    p += t2[0]; f += t2[1]
+    if b3.is_multipolygon():
+        var t2b = expect("buffer(multipolygon) parts >= 1", b3.as_multipolygon().polys.__len__() >= 1)
+        p += t2b[0]; f += t2b[1]
+    else:
+        var t2c = expect("buffer(multipolygon) parts >= 1", False)
+        p += t2c[0]; f += t2c[1]
 
     return (p, f)
 
@@ -325,6 +363,11 @@ fn main():
     var r6 = test_make_valid_basic()
     print("END test_make_valid_basic")
     passed += r6[0]; failed += r6[1]
+
+    print("START test_buffer_polygon_basic")
+    var r7 = test_buffer_polygon_basic()
+    print("END test_buffer_polygon_basic")
+    passed += r7[0]; failed += r7[1]
 
     print("\nSummary: ")
     print(("passed = " + passed.__str__()) + (", failed = " + failed.__str__()))
