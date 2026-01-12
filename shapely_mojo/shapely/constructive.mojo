@@ -320,29 +320,57 @@ fn _line_intersection(
     return ((p1x + t * d1x, p1y + t * d1y), True)
 
 
-fn _append_arc_8(
+fn _append_arc(
     mut out: List[Tuple[Float64, Float64]],
     cx: Float64,
     cy: Float64,
     r: Float64,
+    quad_segs: Int32,
     sx: Float64,
     sy: Float64,
     ex: Float64,
     ey: Float64,
     ccw: Bool,
 ):
-    # Approximate an arc using the 8-direction unit circle points.
-    # We choose the closest direction indices to (s) and (e), then step.
+    # Approximate an arc using a direction table derived from the 8-direction unit
+    # circle, subdividing each 45-degree octant using normalized interpolation.
+    # quad_segs is the number of segments per 90-degree quarter circle.
     var s = sqrt_f64(0.5)
+    var base = List[Tuple[Float64, Float64]]()
+    base.append((1.0, 0.0))
+    base.append((s, s))
+    base.append((0.0, 1.0))
+    base.append((-s, s))
+    base.append((-1.0, 0.0))
+    base.append((-s, -s))
+    base.append((0.0, -1.0))
+    base.append((s, -s))
+
+    var segs: Int = Int(quad_segs)
+    if segs < 1:
+        segs = 1
+    # Number of subdivisions per 45-degree octant.
+    var per_oct: Int = Int(segs / 2)
+    if per_oct < 1:
+        per_oct = 1
+
     var dirs = List[Tuple[Float64, Float64]]()
-    dirs.append((1.0, 0.0))
-    dirs.append((s, s))
-    dirs.append((0.0, 1.0))
-    dirs.append((-s, s))
-    dirs.append((-1.0, 0.0))
-    dirs.append((-s, -s))
-    dirs.append((0.0, -1.0))
-    dirs.append((s, -s))
+    var bi = 0
+    while bi < 8:
+        var a = base[bi]
+        var b = base[(bi + 1) % 8]
+        var t: Int = 0
+        while t < per_oct:
+            var tt = Float64(t) / Float64(per_oct)
+            var vx = a[0] * (1.0 - tt) + b[0] * tt
+            var vy = a[1] * (1.0 - tt) + b[1] * tt
+            var vl = sqrt_f64(vx * vx + vy * vy)
+            if vl != 0.0:
+                vx /= vl
+                vy /= vl
+            dirs.append((vx, vy))
+            t += 1
+        bi += 1
 
     fn best_idx(vx: Float64, vy: Float64, dirs: List[Tuple[Float64, Float64]]) -> Int32:
         var best = -1.0e308
@@ -359,16 +387,17 @@ fn _append_arc_8(
     var si = Int(best_idx(sx, sy, dirs))
     var ei = Int(best_idx(ex, ey, dirs))
 
+    var n = dirs.__len__()
     var i = si
     # include start direction
     out.append((cx + dirs[i][0] * r, cy + dirs[i][1] * r))
     if ccw:
         while i != ei:
-            i = (i + 1) % 8
+            i = (i + 1) % n
             out.append((cx + dirs[i][0] * r, cy + dirs[i][1] * r))
     else:
         while i != ei:
-            i = (i + 7) % 8
+            i = (i + n - 1) % n
             out.append((cx + dirs[i][0] * r, cy + dirs[i][1] * r))
 
 
@@ -512,7 +541,7 @@ fn buffer(
             var cr = _cross(t0x, t0y, t1x, t1y)
             if cr > 0.0:
                 # Left turn: left side is outer.
-                _append_arc_8(left, px, py, distance, n0x, n0y, n1x, n1y, True)
+                _append_arc(left, px, py, distance, _quad_segs, n0x, n0y, n1x, n1y, True)
                 if rok:
                     right.append(rpt)
                 else:
@@ -520,7 +549,7 @@ fn buffer(
                     right.append((q1x, q1y))
             elif cr < 0.0:
                 # Right turn: right side is outer.
-                _append_arc_8(right, px, py, distance, -n0x, -n0y, -n1x, -n1y, False)
+                _append_arc(right, px, py, distance, _quad_segs, -n0x, -n0y, -n1x, -n1y, False)
                 if lok:
                     left.append(lpt)
                 else:
@@ -579,7 +608,7 @@ fn buffer(
         var nx = nxs[n - 2]
         var ny = nys[n - 2]
         # arc from +n to -n around end (exterior)
-        _append_arc_8(ring, pts[n - 1][0], pts[n - 1][1], distance, nx, ny, -nx, -ny, False)
+        _append_arc(ring, pts[n - 1][0], pts[n - 1][1], distance, _quad_segs, nx, ny, -nx, -ny, False)
 
     var rr = right.__len__() - 1
     while rr >= 0:
@@ -591,7 +620,7 @@ fn buffer(
         var nx0 = nxs[0]
         var ny0 = nys[0]
         # arc from -n to +n around start (exterior)
-        _append_arc_8(ring, pts[0][0], pts[0][1], distance, -nx0, -ny0, nx0, ny0, False)
+        _append_arc(ring, pts[0][0], pts[0][1], distance, _quad_segs, -nx0, -ny0, nx0, ny0, False)
 
     if ring.__len__() > 0:
         var first = ring[0]
