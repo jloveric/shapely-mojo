@@ -279,6 +279,27 @@ fn _simplify_linestring(ls: LineString, tol: Float64) -> LineString:
     return LineString(out)
 
 
+fn _simplify_ring_coords(coords: List[Tuple[Float64, Float64]], tol: Float64) -> List[Tuple[Float64, Float64]]:
+    if coords.__len__() < 4:
+        return coords.copy()
+    var open = coords.copy()
+    var first = open[0]
+    var last = open[open.__len__() - 1]
+    if first[0] == last[0] and first[1] == last[1]:
+        open = open[: open.__len__() - 1]
+    if open.__len__() < 3:
+        return List[Tuple[Float64, Float64]]()
+    var simplified = _simplify_linestring(LineString(open), tol).coords.copy()
+    if simplified.__len__() < 3:
+        return List[Tuple[Float64, Float64]]()
+    var out = simplified.copy()
+    var f = out[0]
+    var l = out[out.__len__() - 1]
+    if f[0] != l[0] or f[1] != l[1]:
+        out.append(f)
+    return out.copy()
+
+
 fn _line_intersection(
     p1x: Float64,
     p1y: Float64,
@@ -609,6 +630,25 @@ fn simplify(geom: Geometry, _tolerance: Float64, _preserve_topology: Bool = True
         for ln in mls.lines:
             out.append(_simplify_linestring(ln.copy(), _tolerance))
         return Geometry(MultiLineString(out))
+    if geom.is_polygon():
+        var poly = geom.as_polygon()
+        var shell_coords = _simplify_ring_coords(poly.shell.coords, _tolerance)
+        if shell_coords.__len__() < 4:
+            return Geometry(_empty_polygon())
+        var holes = List[LinearRing]()
+        for h in poly.holes:
+            var hc = _simplify_ring_coords(h.coords, _tolerance)
+            if hc.__len__() >= 4:
+                holes.append(LinearRing(hc))
+        return Geometry(Polygon(LinearRing(shell_coords), holes))
+    if geom.is_multipolygon():
+        var mp = geom.as_multipolygon()
+        var polys = List[Polygon]()
+        for p in mp.polys:
+            var g = simplify(Geometry(p.copy()), _tolerance, _preserve_topology)
+            if g.is_polygon() and not g.is_empty():
+                polys.append(g.as_polygon())
+        return Geometry(MultiPolygon(polys))
     return geom.copy()
 
 

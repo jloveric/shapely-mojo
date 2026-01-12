@@ -104,6 +104,33 @@ fn test_constructive_convex_hull_simplify() -> (Int32, Int32):
     var t4 = expect("simplify(tol=0) keeps points", s1.as_linestring().coords.__len__() == wig.coords.__len__())
     p += t4[0]; f += t4[1]
 
+    # simplify: polygon ring closure preserved and removes tiny hole
+    var shell = LinearRing([(0.0,0.0),(4.0,0.0),(4.0,4.0),(0.0,4.0),(0.0,0.0)])
+    var hole = LinearRing([(1.0,1.0),(1.2,1.0),(1.2,1.2),(1.0,1.2),(1.0,1.0)])
+    var poly = Polygon(shell.copy(), [hole.copy()])
+    var sp = simplify(Geometry(poly.copy()), 0.5)
+    var t5 = expect("simplify(polygon) returns polygon", sp.is_polygon())
+    p += t5[0]; f += t5[1]
+    var spoly = sp.as_polygon()
+    var sc = spoly.shell.coords.copy()
+    var t5b = expect(
+        "simplify(polygon) shell closed",
+        sc.__len__() >= 4
+        and sc[0][0] == sc[sc.__len__() - 1][0]
+        and sc[0][1] == sc[sc.__len__() - 1][1],
+    )
+    p += t5b[0]; f += t5b[1]
+    var t5c = expect("simplify(polygon) drops small hole", spoly.holes.__len__() == 0)
+    p += t5c[0]; f += t5c[1]
+
+    # simplify: multipolygon keeps only non-empty simplified parts
+    var mp = MultiPolygon([poly.copy(), Polygon(LinearRing([])).copy()])
+    var smp = simplify(Geometry(mp.copy()), 0.5)
+    var t6 = expect("simplify(multipolygon) is multipolygon", smp.is_multipolygon())
+    p += t6[0]; f += t6[1]
+    var t6b = expect("simplify(multipolygon) size == 1", smp.as_multipolygon().polys.__len__() == 1)
+    p += t6b[0]; f += t6b[1]
+
     return (p, f)
 
 
