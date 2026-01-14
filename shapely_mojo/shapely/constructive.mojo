@@ -331,6 +331,7 @@ fn _append_arc(
     ex: Float64,
     ey: Float64,
     ccw: Bool,
+    force_short: Bool,
 ):
     # Approximate an arc using a direction table derived from the 8-direction unit
     # circle, subdividing each 45-degree octant using normalized interpolation.
@@ -360,7 +361,10 @@ fn _append_arc(
         var a = base[bi]
         var b = base[(bi + 1) % 8]
         var t: Int = 0
-        while t < per_oct:
+        while t <= per_oct:
+            if bi != 0 and t == 0:
+                t += 1
+                continue
             var tt = Float64(t) / Float64(per_oct)
             var vx = a[0] * (1.0 - tt) + b[0] * tt
             var vy = a[1] * (1.0 - tt) + b[1] * tt
@@ -389,9 +393,30 @@ fn _append_arc(
 
     var n = dirs.__len__()
     var i = si
+    # Decide sweep. For joins we want the caller's exterior sweep direction.
+    # For caps we want the short arc (and a stable semicircle for opposite vectors).
+    var do_ccw = ccw
+    var half: Int = Int(n / 2)
+
+    # Detect opposite vectors (used for round caps): force exactly a semicircle.
+    var sdot = sx * ex + sy * ey
+    if force_short and sdot < -0.90:
+        ei = (si + half) % n
+        do_ccw = ccw
+    elif force_short:
+        var steps_ccw = (ei - si) % n
+        if steps_ccw < 0:
+            steps_ccw += n
+        var steps_cw = (si - ei) % n
+        if steps_cw < 0:
+            steps_cw += n
+        if ccw and steps_ccw > half:
+            do_ccw = False
+        if (not ccw) and steps_cw > half:
+            do_ccw = True
     # include start direction
     out.append((cx + dirs[i][0] * r, cy + dirs[i][1] * r))
-    if ccw:
+    if do_ccw:
         while i != ei:
             i = (i + 1) % n
             out.append((cx + dirs[i][0] * r, cy + dirs[i][1] * r))
@@ -399,6 +424,59 @@ fn _append_arc(
         while i != ei:
             i = (i + n - 1) % n
             out.append((cx + dirs[i][0] * r, cy + dirs[i][1] * r))
+
+
+fn _append_arc_join(
+    mut out: List[Tuple[Float64, Float64]],
+    cx: Float64,
+    cy: Float64,
+    r: Float64,
+    quad_segs: Int32,
+    sx: Float64,
+    sy: Float64,
+    ex: Float64,
+    ey: Float64,
+):
+    # Build a short arc between start/end unit vectors by iterative subdivision.
+    # This avoids direction-table quantization collapsing joins to a mitre.
+    var segs: Int = Int(quad_segs) * 4
+    if segs < 1:
+        segs = 1
+    var iters: Int = 0
+    var pieces: Int = 1
+    while pieces < segs:
+        pieces *= 2
+        iters += 1
+
+    var dirs = List[Tuple[Float64, Float64]]()
+    dirs.append((sx, sy))
+    dirs.append((ex, ey))
+
+    var k = 0
+    while k < iters:
+        var nd = List[Tuple[Float64, Float64]]()
+        var i = 0
+        while i < dirs.__len__() - 1:
+            var a = dirs[i]
+            var b = dirs[i + 1]
+            nd.append(a)
+            var mx = a[0] + b[0]
+            var my = a[1] + b[1]
+            var ml = sqrt_f64(mx * mx + my * my)
+            if ml != 0.0:
+                mx /= ml
+                my /= ml
+                nd.append((mx, my))
+            i += 1
+        nd.append(dirs[dirs.__len__() - 1])
+        dirs = nd.copy()
+        k += 1
+
+    var j = 0
+    while j < dirs.__len__():
+        var d = dirs[j]
+        out.append((cx + d[0] * r, cy + d[1] * r))
+        j += 1
 
 
 fn _segment_tube(ax: Float64, ay: Float64, bx: Float64, by: Float64, r: Float64) -> Polygon:
@@ -418,7 +496,54 @@ fn _segment_tube(ax: Float64, ay: Float64, bx: Float64, by: Float64, r: Float64)
     return Polygon(LinearRing(pts))
 
 
-fn buffer(geom: Geometry, _distance: Float64, _quad_segs: Int32 = 8) -> Geometry:
+fn _disk(cx: Float64, cy: Float64, r: Float64, quad_segs: Int32) -> Polygon:
+    if r <= 0.0:
+        return _empty_polygon()
+    var segs: Int = Int(quad_segs)
+    if segs < 1:
+        segs = 1
+    # Approximate full circle using 8-direction base subdivided by quad_segs.
+    var s = sqrt_f64(0.5)
+    var base = List[Tuple[Float64, Float64]]()
+    base.append((1.0, 0.0))
+    base.append((s, s))
+    base.append((0.0, 1.0))
+    base.append((-s, s))
+    base.append((-1.0, 0.0))
+    base.append((-s, -s))
+    base.append((0.0, -1.0))
+    base.append((s, -s))
+
+    var per_oct: Int = Int(segs / 2)
+    if per_oct < 1:
+        per_oct = 1
+
+    var ring = List[Tuple[Float64, Float64]]()
+    var bi = 0
+    while bi < 8:
+        var a = base[bi]
+        var b = base[(bi + 1) % 8]
+        var t: Int = 0
+        while t <= per_oct:
+            if bi != 0 and t == 0:
+                t += 1
+                continue
+            var tt = Float64(t) / Float64(per_oct)
+            var vx = a[0] * (1.0 - tt) + b[0] * tt
+            var vy = a[1] * (1.0 - tt) + b[1] * tt
+            var vl = sqrt_f64(vx * vx + vy * vy)
+            if vl != 0.0:
+                vx /= vl
+                vy /= vl
+            ring.append((cx + vx * r, cy + vy * r))
+            t += 1
+        bi += 1
+    if ring.__len__() > 0:
+        ring.append(ring[0])
+    return Polygon(LinearRing(ring))
+
+
+fn buffer(geom: Geometry, _distance: Float64, _quad_segs: Int32 = 16) -> Geometry:
     if _distance <= 0.0:
         return geom.copy()
     if geom.is_linestring():
@@ -453,7 +578,7 @@ fn buffer(
     return geom.copy()
 
 
-fn buffer(ls: LineString, distance: Float64, _quad_segs: Int32 = 8) -> Geometry:
+fn buffer(ls: LineString, distance: Float64, _quad_segs: Int32 = 16) -> Geometry:
     return buffer(ls, distance, _quad_segs, CAP_ROUND, JOIN_ROUND, 5.0)
 
 
@@ -467,6 +592,42 @@ fn buffer(
 ) -> Geometry:
     if ls.coords.__len__() < 2:
         return Geometry(_empty_polygon())
+
+    # Robust round-join buffering: Minkowski-sum style union of segment tubes and
+    # vertex disks. This naturally trims corners and clips the join circles.
+    if join_style == JOIN_ROUND:
+        var pts = ls.coords.copy()
+        var n = pts.__len__()
+
+        # Square caps extend endpoints along tangents.
+        if cap_style == CAP_SQUARE:
+            var t0 = _unit_tangent(pts[0][0], pts[0][1], pts[1][0], pts[1][1])
+            pts[0] = (pts[0][0] - t0[0] * distance, pts[0][1] - t0[1] * distance)
+            var t1 = _unit_tangent(pts[n - 2][0], pts[n - 2][1], pts[n - 1][0], pts[n - 1][1])
+            pts[n - 1] = (pts[n - 1][0] + t1[0] * distance, pts[n - 1][1] + t1[1] * distance)
+
+        var acc = Geometry(_empty_polygon())
+
+        # Segment tubes
+        var i = 0
+        while i < n - 1:
+            var tube = Geometry(_segment_tube(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], distance))
+            acc = union(acc, tube)
+            i += 1
+
+        # Round join disks at internal vertices
+        var k = 1
+        while k < n - 1:
+            var d = Geometry(_disk(pts[k][0], pts[k][1], distance, _quad_segs))
+            acc = union(acc, d)
+            k += 1
+
+        # Round caps: endpoint disks. Flat/square caps: omit disks at ends.
+        if cap_style == CAP_ROUND:
+            acc = union(acc, Geometry(_disk(pts[0][0], pts[0][1], distance, _quad_segs)))
+            acc = union(acc, Geometry(_disk(pts[n - 1][0], pts[n - 1][1], distance, _quad_segs)))
+
+        return acc.copy()
 
     # Build a single polygon ring for the polyline buffer (no unions).
     var n = ls.coords.__len__()
@@ -541,7 +702,7 @@ fn buffer(
             var cr = _cross(t0x, t0y, t1x, t1y)
             if cr > 0.0:
                 # Left turn: left side is outer.
-                _append_arc(left, px, py, distance, _quad_segs, n0x, n0y, n1x, n1y, True)
+                _append_arc_join(left, px, py, distance, _quad_segs, n0x, n0y, n1x, n1y)
                 if rok:
                     right.append(rpt)
                 else:
@@ -549,7 +710,7 @@ fn buffer(
                     right.append((q1x, q1y))
             elif cr < 0.0:
                 # Right turn: right side is outer.
-                _append_arc(right, px, py, distance, _quad_segs, -n0x, -n0y, -n1x, -n1y, False)
+                _append_arc_join(right, px, py, distance, _quad_segs, -n0x, -n0y, -n1x, -n1y)
                 if lok:
                     left.append(lpt)
                 else:
@@ -608,7 +769,7 @@ fn buffer(
         var nx = nxs[n - 2]
         var ny = nys[n - 2]
         # arc from +n to -n around end (exterior)
-        _append_arc(ring, pts[n - 1][0], pts[n - 1][1], distance, _quad_segs, nx, ny, -nx, -ny, False)
+        _append_arc(ring, pts[n - 1][0], pts[n - 1][1], distance, _quad_segs, nx, ny, -nx, -ny, False, True)
 
     var rr = right.__len__() - 1
     while rr >= 0:
@@ -620,7 +781,7 @@ fn buffer(
         var nx0 = nxs[0]
         var ny0 = nys[0]
         # arc from -n to +n around start (exterior)
-        _append_arc(ring, pts[0][0], pts[0][1], distance, _quad_segs, -nx0, -ny0, nx0, ny0, False)
+        _append_arc(ring, pts[0][0], pts[0][1], distance, _quad_segs, -nx0, -ny0, nx0, ny0, False, True)
 
     if ring.__len__() > 0:
         var first = ring[0]
@@ -631,7 +792,7 @@ fn buffer(
     return Geometry(Polygon(LinearRing(ring)))
 
 
-fn buffer(p: Polygon, distance: Float64, quad_segs: Int32 = 8) -> Geometry:
+fn buffer(p: Polygon, distance: Float64, quad_segs: Int32 = 16) -> Geometry:
     return buffer(p, distance, quad_segs, CAP_ROUND, JOIN_ROUND, 5.0)
 
 
@@ -662,7 +823,7 @@ fn buffer(
     return acc.copy()
 
 
-fn buffer(mp: MultiPolygon, distance: Float64, quad_segs: Int32 = 8) -> Geometry:
+fn buffer(mp: MultiPolygon, distance: Float64, quad_segs: Int32 = 16) -> Geometry:
     return buffer(mp, distance, quad_segs, CAP_ROUND, JOIN_ROUND, 5.0)
 
 
@@ -687,7 +848,7 @@ fn buffer(
     return Geometry(MultiPolygon(polys))
 
 
-fn buffer(mls: MultiLineString, distance: Float64, quad_segs: Int32 = 8) -> Geometry:
+fn buffer(mls: MultiLineString, distance: Float64, quad_segs: Int32 = 16) -> Geometry:
     var acc = Geometry(_empty_polygon())
     for ln in mls.lines:
         acc = union(acc, buffer(ln.copy(), distance, quad_segs))
