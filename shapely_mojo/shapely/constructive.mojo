@@ -320,6 +320,27 @@ fn _line_intersection(
     return ((p1x + t * d1x, p1y + t * d1y), True)
 
 
+fn _line_intersection_tu(
+    p1x: Float64,
+    p1y: Float64,
+    d1x: Float64,
+    d1y: Float64,
+    p2x: Float64,
+    p2y: Float64,
+    d2x: Float64,
+    d2y: Float64,
+) -> (Tuple[Float64, Float64], Float64, Float64, Bool):
+    # Solve p1 + t*d1 = p2 + u*d2
+    var denom = _cross(d1x, d1y, d2x, d2y)
+    if denom == 0.0:
+        return ((0.0, 0.0), 0.0, 0.0, False)
+    var rx = p2x - p1x
+    var ry = p2y - p1y
+    var t = _cross(rx, ry, d2x, d2y) / denom
+    var u = _cross(rx, ry, d1x, d1y) / denom
+    return ((p1x + t * d1x, p1y + t * d1y), t, u, True)
+
+
 fn _append_arc(
     mut out: List[Tuple[Float64, Float64]],
     cx: Float64,
@@ -593,8 +614,8 @@ fn buffer(
     if ls.coords.__len__() < 2:
         return Geometry(_empty_polygon())
 
-    # Robust round-join buffering: Minkowski-sum style union of segment tubes and
-    # vertex disks. This naturally trims corners and clips the join circles.
+    # Robust buffering for round joins: Minkowski-sum style union of segment tubes
+    # and vertex disks. This naturally trims corners and clips join circles.
     if join_style == JOIN_ROUND:
         var pts = ls.coords.copy()
         var n = pts.__len__()
@@ -683,18 +704,22 @@ fn buffer(
         var p0y = py + n0y * distance
         var p1x = px + n1x * distance
         var p1y = py + n1y * distance
-        var li = _line_intersection(p0x, p0y, t0x, t0y, p1x, p1y, t1x, t1y)
+        var li = _line_intersection_tu(p0x, p0y, t0x, t0y, p1x, p1y, t1x, t1y)
         var lpt = li[0]
-        var lok = li[1]
+        var lt = li[1]
+        var lu = li[2]
+        var lok = li[3]
 
         # Right side intersection (use -normals)
         var q0x = px - n0x * distance
         var q0y = py - n0y * distance
         var q1x = px - n1x * distance
         var q1y = py - n1y * distance
-        var ri = _line_intersection(q0x, q0y, t0x, t0y, q1x, q1y, t1x, t1y)
+        var ri = _line_intersection_tu(q0x, q0y, t0x, t0y, q1x, q1y, t1x, t1y)
         var rpt = ri[0]
-        var rok = ri[1]
+        var rt = ri[1]
+        var ru = ri[2]
+        var rok = ri[3]
 
         if join_style == JOIN_ROUND:
             # Only add the round arc on the *outer* (convex) side of the turn.
@@ -748,10 +773,32 @@ fn buffer(
                 right.append((q1x, q1y))
         else:
             # bevel (or parallel fallback)
-            left.append((p0x, p0y))
-            left.append((p1x, p1y))
-            right.append((q0x, q0y))
-            right.append((q1x, q1y))
+            if join_style == JOIN_BEVEL:
+                var cr = _cross(t0x, t0y, t1x, t1y)
+                if cr > 0.0:
+                    # Left turn: right side is outer (convex): bevel with endpoints.
+                    # Left side is inner (concave): use intersection only (no extra points).
+                    right.append((q0x, q0y))
+                    right.append((q1x, q1y))
+                    if lok:
+                        left.append(lpt)
+                elif cr < 0.0:
+                    # Right turn: left side is outer (convex): bevel with endpoints.
+                    # Right side is inner (concave): use intersection only (no extra points).
+                    left.append((p0x, p0y))
+                    left.append((p1x, p1y))
+                    if rok:
+                        right.append(rpt)
+                else:
+                    left.append((p0x, p0y))
+                    left.append((p1x, p1y))
+                    right.append((q0x, q0y))
+                    right.append((q1x, q1y))
+            else:
+                left.append((p0x, p0y))
+                left.append((p1x, p1y))
+                right.append((q0x, q0y))
+                right.append((q1x, q1y))
 
         k += 1
 
