@@ -868,12 +868,16 @@ fn buffer(
     # Expand exterior and shrink/fill holes by unioning with buffered boundary rings.
     var acc = Geometry(p.copy())
 
+    # Polygon rings are closed; cap style does not apply. Force flat caps to avoid
+    # spurious end-cap artifacts when buffering closed rings.
+    var ring_cap: CapStyle = CAP_FLAT
+
     var shell_ls = LineString(p.shell.coords.copy())
-    acc = union(acc, buffer(shell_ls, distance, quad_segs, cap_style, join_style, mitre_limit))
+    acc = union(acc, buffer(shell_ls, distance, quad_segs, ring_cap, join_style, mitre_limit))
 
     for h in p.holes:
         var hole_ls = LineString(h.coords.copy())
-        acc = union(acc, buffer(hole_ls, distance, quad_segs, cap_style, join_style, mitre_limit))
+        acc = union(acc, buffer(hole_ls, distance, quad_segs, ring_cap, join_style, mitre_limit))
 
     return acc.copy()
 
