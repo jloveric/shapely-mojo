@@ -564,6 +564,14 @@ fn _disk(cx: Float64, cy: Float64, r: Float64, quad_segs: Int32) -> Polygon:
     return Polygon(LinearRing(ring))
 
 
+fn circle(cx: Float64, cy: Float64, radius: Float64, quad_segs: Int32 = 16) -> Geometry:
+    return Geometry(_disk(cx, cy, radius, quad_segs))
+
+
+fn circle(center: Point, radius: Float64, quad_segs: Int32 = 16) -> Geometry:
+    return Geometry(_disk(center.x, center.y, radius, quad_segs))
+
+
 fn buffer(geom: Geometry, _distance: Float64, _quad_segs: Int32 = 16) -> Geometry:
     if _distance <= 0.0:
         return geom.copy()
