@@ -585,7 +585,7 @@ fn _disk(cx: Float64, cy: Float64, r: Float64, quad_segs: Int32) -> Polygon:
         var first = ring[0]
         var last = ring[ring.__len__() - 1]
         if first[0] == last[0] and first[1] == last[1]:
-            ring.pop()
+            var _ = ring.pop()
         ring.append(ring[0])
     return Polygon(LinearRing(ring))
 
@@ -760,8 +760,8 @@ fn buffer(
             var p1y = py + n1y * distance
             var li = _line_intersection_tu(p0x, p0y, t0x, t0y, p1x, p1y, t1x, t1y)
             var lpt = li[0]
-            var lt = li[1]
-            var lu = li[2]
+            var _ = li[1]
+            var _ = li[2]
             var lok = li[3]
 
             # Right side intersection (use -normals)
@@ -771,8 +771,8 @@ fn buffer(
             var q1y = py - n1y * distance
             var ri = _line_intersection_tu(q0x, q0y, t0x, t0y, q1x, q1y, t1x, t1y)
             var rpt = ri[0]
-            var rt = ri[1]
-            var ru = ri[2]
+            var _ = ri[1]
+            var _ = ri[2]
             var rok = ri[3]
 
             var force_bevel = False
