@@ -10,6 +10,7 @@ from shapely.geometry import (
     MultiPolygon,
 )
 from shapely.set_operations import union
+from shapely.algorithms import signed_area_coords
 
 
 alias CapStyle = Int32
@@ -75,6 +76,25 @@ fn _dot(ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
 
 fn _cross(ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
     return ax * by - ay * bx
+
+
+fn _close_ring(mut coords: List[Tuple[Float64, Float64]]):
+    if coords.__len__() == 0:
+        return
+    var first = coords[0]
+    var last = coords[coords.__len__() - 1]
+    if first[0] != last[0] or first[1] != last[1]:
+        coords.append(first)
+
+
+fn _reverse_coords(coords: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Float64]]:
+    var out = List[Tuple[Float64, Float64]]()
+    var i: Int = coords.__len__() - 1
+    while i >= 0:
+        out.append(coords[i])
+        i -= 1
+    _close_ring(out)
+    return out^
 
 
 fn _collect_coords(geom: Geometry, mut out: List[Tuple[Float64, Float64]]):
@@ -751,7 +771,7 @@ fn buffer(
 
             var force_bevel = False
             if join_style == JOIN_MITRE:
-                var can_mitre = lok and rok and lt >= 0.0 and lu >= 0.0 and rt >= 0.0 and ru >= 0.0
+                var can_mitre = lok and rok
                 if can_mitre:
                     # Apply a simple mitre limit: fallback to bevel if too far
                     var dlx = lpt[0] - px
@@ -776,14 +796,14 @@ fn buffer(
                     # Left side is inner (concave): use forward intersection only.
                     right.append((q0x, q0y))
                     right.append((q1x, q1y))
-                    if lok and lt >= 0.0 and lu >= 0.0:
+                    if lok:
                         left.append(lpt)
                 elif cr < 0.0:
                     # Right turn: left side is outer (convex): bevel with endpoints.
                     # Right side is inner (concave): use forward intersection only.
                     left.append((p0x, p0y))
                     left.append((p1x, p1y))
-                    if rok and rt >= 0.0 and ru >= 0.0:
+                    if rok:
                         right.append(rpt)
                 else:
                     left.append((p0x, p0y))
@@ -799,21 +819,35 @@ fn buffer(
 
             k += 1
 
-        var ring = List[Tuple[Float64, Float64]]()
-        for p in left:
-            ring.append(p)
-        var rr = right.__len__() - 1
-        while rr >= 0:
-            ring.append(right[rr])
-            rr -= 1
+        _close_ring(left)
+        _close_ring(right)
 
-        if ring.__len__() > 0:
-            var first = ring[0]
-            var last = ring[ring.__len__() - 1]
-            if first[0] != last[0] or first[1] != last[1]:
-                ring.append(first)
+        var ring_area = signed_area_coords(ls.coords)
 
-        return Geometry(Polygon(LinearRing(ring)))
+        var outer_coords = List[Tuple[Float64, Float64]]()
+        var inner_coords = List[Tuple[Float64, Float64]]()
+        if ring_area > 0.0:
+            # CCW ring: outward is to the right.
+            for p in right:
+                outer_coords.append(p)
+            for p in left:
+                inner_coords.append(p)
+        else:
+            # CW ring: outward is to the left.
+            for p in left:
+                outer_coords.append(p)
+            for p in right:
+                inner_coords.append(p)
+
+        _close_ring(outer_coords)
+        _close_ring(inner_coords)
+
+        if signed_area_coords(outer_coords) < 0.0:
+            outer_coords = _reverse_coords(outer_coords)
+        if signed_area_coords(inner_coords) > 0.0:
+            inner_coords = _reverse_coords(inner_coords)
+
+        return Geometry(Polygon(LinearRing(outer_coords), [LinearRing(inner_coords)]))
 
     # Precompute tangents and normals for each segment
     var txs = List[Float64]()

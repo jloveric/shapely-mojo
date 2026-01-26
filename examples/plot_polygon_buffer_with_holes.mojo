@@ -65,20 +65,43 @@ fn _plot_geom(
 
 
 fn _base_polygon_with_holes() -> Polygon:
+    var s: Float64 = 2.0
+    var hole_scale: Float64 = 1.5
+
     # Simple rectangle shell
     var shell = List[Tuple[Float64, Float64]]()
-    shell.append((0.0, 0.0))
-    shell.append((10.0, 0.0))
-    shell.append((10.0, 7.0))
-    shell.append((0.0, 7.0))
-    shell.append((0.0, 0.0))
+    shell.append((0.0 * s, 0.0 * s))
+    shell.append((10.0 * s, 0.0 * s))
+    shell.append((10.0 * s, 7.0 * s))
+    shell.append((0.0 * s, 7.0 * s))
+    shell.append((0.0 * s, 0.0 * s))
 
-    # 3 circular holes
+    # 1 circular hole + 2 polygonal holes
     var holes = List[LinearRing]()
 
-    var h1 = circle(3.0, 2.0, 0.9, 16).as_polygon().shell.copy()
-    var h2 = circle(7.0, 2.2, 1.1, 16).as_polygon().shell.copy()
-    var h3 = circle(5.0, 5.0, 0.7, 16).as_polygon().shell.copy()
+    # Circle hole
+    var h1 = circle(3.0 * s, 2.0 * s, 0.75 * s * hole_scale, 16).as_polygon().shell.copy()
+
+    # Diamond (polygon) hole
+    var h2c = List[Tuple[Float64, Float64]]()
+    var h2cx: Float64 = 7.0 * s
+    var h2cy: Float64 = 2.2 * s
+    h2c.append((h2cx + (7.0 * s - h2cx) * hole_scale, h2cy + (1.2 * s - h2cy) * hole_scale))
+    h2c.append((h2cx + (8.0 * s - h2cx) * hole_scale, h2cy + (2.2 * s - h2cy) * hole_scale))
+    h2c.append((h2cx + (7.0 * s - h2cx) * hole_scale, h2cy + (3.2 * s - h2cy) * hole_scale))
+    h2c.append((h2cx + (6.0 * s - h2cx) * hole_scale, h2cy + (2.2 * s - h2cy) * hole_scale))
+    h2c.append((h2cx + (7.0 * s - h2cx) * hole_scale, h2cy + (1.2 * s - h2cy) * hole_scale))
+    var h2 = LinearRing(h2c)
+
+    # Triangle (polygon) hole
+    var h3c = List[Tuple[Float64, Float64]]()
+    var h3cx: Float64 = 5.1 * s
+    var h3cy: Float64 = 5.033333333333333 * s
+    h3c.append((h3cx + (4.5 * s - h3cx) * hole_scale, h3cy + (4.6 * s - h3cy) * hole_scale))
+    h3c.append((h3cx + (5.7 * s - h3cx) * hole_scale, h3cy + (4.7 * s - h3cy) * hole_scale))
+    h3c.append((h3cx + (5.1 * s - h3cx) * hole_scale, h3cy + (5.8 * s - h3cy) * hole_scale))
+    h3c.append((h3cx + (4.5 * s - h3cx) * hole_scale, h3cy + (4.6 * s - h3cy) * hole_scale))
+    var h3 = LinearRing(h3c)
 
     holes.append(h1.copy())
     holes.append(h2.copy())
@@ -109,7 +132,7 @@ fn main() raises:
 
     var distances = List[Float64]()
     distances.append(0.6)
-    distances.append(1.2)
+    distances.append(0.9)
 
     var rows = distances.__len__()
     var cols = joins.__len__()
