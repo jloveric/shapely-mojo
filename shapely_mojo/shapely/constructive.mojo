@@ -9,7 +9,7 @@ from shapely.geometry import (
     MultiPoint,
     MultiPolygon,
 )
-from shapely.set_operations import union
+from shapely.set_operations import union, difference
 from shapely.algorithms import signed_area_coords
 
 
@@ -580,6 +580,12 @@ fn _disk(cx: Float64, cy: Float64, r: Float64, quad_segs: Int32) -> Polygon:
             t += 1
         bi += 1
     if ring.__len__() > 0:
+        # Avoid a duplicate start point right before closure (can create a zero-length
+        # segment and produce seams in bevel/mitre closed-ring buffering).
+        var first = ring[0]
+        var last = ring[ring.__len__() - 1]
+        if first[0] == last[0] and first[1] == last[1]:
+            ring.pop()
         ring.append(ring[0])
     return Polygon(LinearRing(ring))
 
@@ -797,14 +803,34 @@ fn buffer(
                     right.append((q0x, q0y))
                     right.append((q1x, q1y))
                     if lok:
-                        left.append(lpt)
+                        var dlx = lpt[0] - px
+                        var dly = lpt[1] - py
+                        var ml = sqrt_f64(dlx * dlx + dly * dly)
+                        if ml <= _mitre_limit * distance:
+                            left.append(lpt)
+                        else:
+                            left.append((p0x, p0y))
+                            left.append((p1x, p1y))
+                    else:
+                        left.append((p0x, p0y))
+                        left.append((p1x, p1y))
                 elif cr < 0.0:
                     # Right turn: left side is outer (convex): bevel with endpoints.
                     # Right side is inner (concave): use forward intersection only.
                     left.append((p0x, p0y))
                     left.append((p1x, p1y))
                     if rok:
-                        right.append(rpt)
+                        var drx = rpt[0] - px
+                        var dry = rpt[1] - py
+                        var mr = sqrt_f64(drx * drx + dry * dry)
+                        if mr <= _mitre_limit * distance:
+                            right.append(rpt)
+                        else:
+                            right.append((q0x, q0y))
+                            right.append((q1x, q1y))
+                    else:
+                        right.append((q0x, q0y))
+                        right.append((q1x, q1y))
                 else:
                     left.append((p0x, p0y))
                     left.append((p1x, p1y))
@@ -847,7 +873,11 @@ fn buffer(
         if signed_area_coords(inner_coords) > 0.0:
             inner_coords = _reverse_coords(inner_coords)
 
-        return Geometry(Polygon(LinearRing(outer_coords), [LinearRing(inner_coords)]))
+        # Build as a boolean difference for robustness (prevents occasional seams on
+        # circle-like rings where the direct shell+hole polygon can be invalid).
+        var outer_poly = Polygon(LinearRing(outer_coords))
+        var inner_poly = Polygon(LinearRing(inner_coords))
+        return difference(outer_poly, inner_poly)
 
     # Precompute tangents and normals for each segment
     var txs = List[Float64]()
