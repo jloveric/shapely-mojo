@@ -622,6 +622,18 @@ fn buffer(
     if ls.coords.__len__() < 2:
         return Geometry(_empty_polygon())
 
+    var is_closed = False
+    if ls.coords.__len__() >= 4:
+        var f = ls.coords[0]
+        var l = ls.coords[ls.coords.__len__() - 1]
+        if f[0] == l[0] and f[1] == l[1]:
+            is_closed = True
+
+    var effective_cap: CapStyle = cap_style
+    if is_closed:
+        # Closed rings don't have caps.
+        effective_cap = CAP_FLAT
+
     # Robust buffering for round joins: Minkowski-sum style union of segment tubes
     # and vertex disks. This naturally trims corners and clips join circles.
     if join_style == JOIN_ROUND:
@@ -629,7 +641,7 @@ fn buffer(
         var n = pts.__len__()
 
         # Square caps extend endpoints along tangents.
-        if cap_style == CAP_SQUARE:
+        if effective_cap == CAP_SQUARE and not is_closed:
             var t0 = _unit_tangent(pts[0][0], pts[0][1], pts[1][0], pts[1][1])
             pts[0] = (pts[0][0] - t0[0] * distance, pts[0][1] - t0[1] * distance)
             var t1 = _unit_tangent(pts[n - 2][0], pts[n - 2][1], pts[n - 1][0], pts[n - 1][1])
@@ -651,8 +663,12 @@ fn buffer(
             acc = union(acc, d)
             k += 1
 
+        # Closed rings need a join disk at the closure vertex as well.
+        if is_closed:
+            acc = union(acc, Geometry(_disk(pts[0][0], pts[0][1], distance, _quad_segs)))
+
         # Round caps: endpoint disks. Flat/square caps: omit disks at ends.
-        if cap_style == CAP_ROUND:
+        if effective_cap == CAP_ROUND and not is_closed:
             acc = union(acc, Geometry(_disk(pts[0][0], pts[0][1], distance, _quad_segs)))
             acc = union(acc, Geometry(_disk(pts[n - 1][0], pts[n - 1][1], distance, _quad_segs)))
 
@@ -661,13 +677,143 @@ fn buffer(
     # Build a single polygon ring for the polyline buffer (no unions).
     var n = ls.coords.__len__()
 
-    # Optionally extend endpoints for square caps
+    # Optionally extend endpoints for square caps (open polylines only)
     var pts = ls.coords.copy()
-    if cap_style == CAP_SQUARE:
+    if effective_cap == CAP_SQUARE and not is_closed:
         var t0 = _unit_tangent(pts[0][0], pts[0][1], pts[1][0], pts[1][1])
         pts[0] = (pts[0][0] - t0[0] * distance, pts[0][1] - t0[1] * distance)
         var t1 = _unit_tangent(pts[n - 2][0], pts[n - 2][1], pts[n - 1][0], pts[n - 1][1])
         pts[n - 1] = (pts[n - 1][0] + t1[0] * distance, pts[n - 1][1] + t1[1] * distance)
+
+    if is_closed:
+        # Closed ring: all vertices are internal and segment data wraps around.
+        var m = n - 1
+
+        var txs = List[Float64]()
+        var tys = List[Float64]()
+        var nxs = List[Float64]()
+        var nys = List[Float64]()
+        var i = 0
+        while i < m:
+            var j = i + 1
+            if j == m:
+                j = 0
+            var t = _unit_tangent(pts[i][0], pts[i][1], pts[j][0], pts[j][1])
+            txs.append(t[0])
+            tys.append(t[1])
+            var nn = _unit_normal_left(t[0], t[1])
+            nxs.append(nn[0])
+            nys.append(nn[1])
+            i += 1
+
+        var left = List[Tuple[Float64, Float64]]()
+        var right = List[Tuple[Float64, Float64]]()
+
+        var k = 0
+        while k < m:
+            var px = pts[k][0]
+            var py = pts[k][1]
+
+            var prev = k - 1
+            if prev < 0:
+                prev = m - 1
+
+            var n0x = nxs[prev]
+            var n0y = nys[prev]
+            var n1x = nxs[k]
+            var n1y = nys[k]
+            var t0x = txs[prev]
+            var t0y = tys[prev]
+            var t1x = txs[k]
+            var t1y = tys[k]
+
+            # Left side intersection
+            var p0x = px + n0x * distance
+            var p0y = py + n0y * distance
+            var p1x = px + n1x * distance
+            var p1y = py + n1y * distance
+            var li = _line_intersection_tu(p0x, p0y, t0x, t0y, p1x, p1y, t1x, t1y)
+            var lpt = li[0]
+            var lt = li[1]
+            var lu = li[2]
+            var lok = li[3]
+
+            # Right side intersection (use -normals)
+            var q0x = px - n0x * distance
+            var q0y = py - n0y * distance
+            var q1x = px - n1x * distance
+            var q1y = py - n1y * distance
+            var ri = _line_intersection_tu(q0x, q0y, t0x, t0y, q1x, q1y, t1x, t1y)
+            var rpt = ri[0]
+            var rt = ri[1]
+            var ru = ri[2]
+            var rok = ri[3]
+
+            var force_bevel = False
+            if join_style == JOIN_MITRE:
+                var can_mitre = lok and rok and lt >= 0.0 and lu >= 0.0 and rt >= 0.0 and ru >= 0.0
+                if can_mitre:
+                    # Apply a simple mitre limit: fallback to bevel if too far
+                    var dlx = lpt[0] - px
+                    var dly = lpt[1] - py
+                    var drx = rpt[0] - px
+                    var dry = rpt[1] - py
+                    var ml = sqrt_f64(dlx * dlx + dly * dly)
+                    var mr = sqrt_f64(drx * drx + dry * dry)
+                    if ml <= _mitre_limit * distance and mr <= _mitre_limit * distance:
+                        left.append(lpt)
+                        right.append(rpt)
+                    else:
+                        force_bevel = True
+                else:
+                    force_bevel = True
+
+            if join_style == JOIN_BEVEL or force_bevel:
+                # bevel (or mitre fallback)
+                var cr = _cross(t0x, t0y, t1x, t1y)
+                if cr > 0.0:
+                    # Left turn: right side is outer (convex): bevel with endpoints.
+                    # Left side is inner (concave): use forward intersection only.
+                    right.append((q0x, q0y))
+                    right.append((q1x, q1y))
+                    if lok and lt >= 0.0 and lu >= 0.0:
+                        left.append(lpt)
+                elif cr < 0.0:
+                    # Right turn: left side is outer (convex): bevel with endpoints.
+                    # Right side is inner (concave): use forward intersection only.
+                    left.append((p0x, p0y))
+                    left.append((p1x, p1y))
+                    if rok and rt >= 0.0 and ru >= 0.0:
+                        right.append(rpt)
+                else:
+                    left.append((p0x, p0y))
+                    left.append((p1x, p1y))
+                    right.append((q0x, q0y))
+                    right.append((q1x, q1y))
+            elif join_style != JOIN_MITRE:
+                # parallel/unknown fallback
+                left.append((p0x, p0y))
+                left.append((p1x, p1y))
+                right.append((q0x, q0y))
+                right.append((q1x, q1y))
+
+            k += 1
+
+        var ring = List[Tuple[Float64, Float64]]()
+        for p in left:
+            ring.append(p)
+        var rr = right.__len__() - 1
+        while rr >= 0:
+            ring.append(right[rr])
+            rr -= 1
+
+        if ring.__len__() > 0:
+            var first = ring[0]
+            var last = ring[ring.__len__() - 1]
+            if first[0] != last[0] or first[1] != last[1]:
+                ring.append(first)
+
+        return Geometry(Polygon(LinearRing(ring)))
 
     # Precompute tangents and normals for each segment
     var txs = List[Float64]()
