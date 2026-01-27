@@ -1,6 +1,17 @@
 from shapely._geometry import Geometry
 
 
+fn sqrt_f64(x: Float64) -> Float64:
+    if x <= 0.0:
+        return 0.0
+    var r = x
+    var i = 0
+    while i < 12:
+        r = 0.5 * (r + x / r)
+        i += 1
+    return r
+
+
 struct Point(Copyable, Movable):
     var x: Float64
     var y: Float64
@@ -76,6 +87,18 @@ struct LineString(Copyable, Movable):
                 maxy = c[1]
         return (minx, miny, maxx, maxy)
 
+    fn length(self) -> Float64:
+        if self.coords.__len__() <= 1:
+            return 0.0
+        var total = 0.0
+        for i in range(0, self.coords.__len__() - 1):
+            var a = self.coords[i]
+            var b = self.coords[i + 1]
+            var dx = b[0] - a[0]
+            var dy = b[1] - a[1]
+            total += sqrt_f64(dx * dx + dy * dy)
+        return total
+
 
 struct LinearRing(Copyable, Movable):
     var coords: List[Tuple[Float64, Float64]]
@@ -113,6 +136,18 @@ struct LinearRing(Copyable, Movable):
             if c[1] > maxy:
                 maxy = c[1]
         return (minx, miny, maxx, maxy)
+
+    fn length(self) -> Float64:
+        if self.coords.__len__() <= 1:
+            return 0.0
+        var total = 0.0
+        for i in range(0, self.coords.__len__() - 1):
+            var a = self.coords[i]
+            var b = self.coords[i + 1]
+            var dx = b[0] - a[0]
+            var dy = b[1] - a[1]
+            total += sqrt_f64(dx * dx + dy * dy)
+        return total
 
 
 struct Polygon(Copyable, Movable):
@@ -170,6 +205,34 @@ struct Polygon(Copyable, Movable):
             if c[1] > maxy:
                 maxy = c[1]
         return (minx, miny, maxx, maxy)
+
+    fn area(self) -> Float64:
+        if self.shell.coords.__len__() < 3:
+            return 0.0
+        var shell_sum = 0.0
+        for i in range(0, self.shell.coords.__len__() - 1):
+            var a = self.shell.coords[i]
+            var b = self.shell.coords[i + 1]
+            shell_sum += a[0] * b[1] - a[1] * b[0]
+        var holes_sum = 0.0
+        for h in self.holes:
+            if h.coords.__len__() >= 3:
+                var hs = 0.0
+                for i in range(0, h.coords.__len__() - 1):
+                    var a = h.coords[i]
+                    var b = h.coords[i + 1]
+                    hs += a[0] * b[1] - a[1] * b[0]
+                holes_sum += 0.5 * abs(hs)
+        var total = 0.5 * (shell_sum - holes_sum)
+        if total < 0.0:
+            return -total
+        return total
+
+    fn length(self) -> Float64:
+        var s = self.shell.length()
+        for h in self.holes:
+            s += h.length()
+        return s
 
 
 struct GeometryCollection(Copyable, Movable):
@@ -311,6 +374,13 @@ struct MultiLineString(Copyable, Movable):
         return (minx, miny, maxx, maxy)
 
 
+    fn length(self) -> Float64:
+        var s = 0.0
+        for ln in self.lines:
+            s += ln.length()
+        return s
+
+
 struct MultiPolygon(Copyable, Movable):
     var polys: List[Polygon]
 
@@ -373,3 +443,17 @@ struct MultiPolygon(Copyable, Movable):
                 if b[3] > maxy:
                     maxy = b[3]
         return (minx, miny, maxx, maxy)
+
+
+    fn area(self) -> Float64:
+        var s = 0.0
+        for p in self.polys:
+            s += p.area()
+        return s
+
+
+    fn length(self) -> Float64:
+        var s = 0.0
+        for p in self.polys:
+            s += p.length()
+        return s

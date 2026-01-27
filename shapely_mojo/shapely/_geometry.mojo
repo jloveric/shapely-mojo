@@ -138,6 +138,36 @@ struct Geometry(Copyable, Movable):
             return self.payload[MultiPolygon].bounds()
         return (0.0, 0.0, 0.0, 0.0)
 
+    fn area(self) -> Float64:
+        if self.payload.isa[Polygon]():
+            return self.payload[Polygon].area()
+        if self.payload.isa[MultiPolygon]():
+            return self.payload[MultiPolygon].area()
+        if self.payload.isa[GeometryCollection]():
+            var gc = self.payload[GeometryCollection].copy()
+            var s = 0.0
+            for g in gc.geoms:
+                s += g.area()
+            return s
+        return 0.0
+
+    fn length(self) -> Float64:
+        if self.payload.isa[LineString]():
+            return self.payload[LineString].length()
+        if self.payload.isa[MultiLineString]():
+            return self.payload[MultiLineString].length()
+        if self.payload.isa[Polygon]():
+            return self.payload[Polygon].length()
+        if self.payload.isa[MultiPolygon]():
+            return self.payload[MultiPolygon].length()
+        if self.payload.isa[GeometryCollection]():
+            var gc = self.payload[GeometryCollection].copy()
+            var s = 0.0
+            for g in gc.geoms:
+                s += g.length()
+            return s
+        return 0.0
+
 
 struct GEOSException:
     fn __init__(out self):

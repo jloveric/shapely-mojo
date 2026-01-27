@@ -53,6 +53,16 @@ Regenerate:
 uv run mojo run -I shapely_mojo examples/plot_polygon_buffer_with_holes.mojo
 ```
 
+Tic-tac-toe board linework buffered + unioned into a single footprint (prints `area()` and `length()` and saves a plot):
+
+![Tic-tac-toe buffer](images/tictactoe_buffer.png)
+
+Regenerate:
+
+```bash
+uv run mojo run -I shapely_mojo examples/plot_tictactoe_buffer_metrics.mojo
+```
+
 ## Project layout
  
 - `shapely_mojo/shapely/`
