@@ -63,6 +63,16 @@ Regenerate:
 uv run mojo run -I shapely_mojo examples/plot_tictactoe_buffer_metrics.mojo
 ```
 
+Boolean operations (intersection / union / difference / symmetric difference) between two polygons:
+
+![Boolean operations](images/boolean_operations.png)
+
+Regenerate:
+
+```bash
+uv run mojo run -I shapely_mojo examples/plot_boolean_operations.mojo
+```
+
 ## Project layout
  
 - `shapely_mojo/shapely/`

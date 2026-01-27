@@ -12,9 +12,9 @@ fn linestrings(coords: List[Tuple[Float64, Float64]]) -> LineString:
 
 fn linearrings(coords: List[Tuple[Float64, Float64]]) -> LinearRing:
     # Ensure closed ring (repeat start if needed)
-    if coords.size() > 0:
+    if coords.__len__() > 0:
         var first = coords[0]
-        var last = coords[coords.size() - 1]
+        var last = coords[coords.__len__() - 1]
         if first[0] != last[0] or first[1] != last[1]:
             var closed = List[Tuple[Float64, Float64]]()
             for c in coords: closed.append(c)
