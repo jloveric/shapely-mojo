@@ -73,6 +73,16 @@ Regenerate:
 uv run mojo run -I shapely_mojo examples/plot_boolean_operations.mojo
 ```
 
+STRtree spatial index example (predicate query + nearest / kNN):
+
+![STRtree queries](images/strtree_queries.png)
+
+Regenerate:
+
+```bash
+uv run mojo run -I shapely_mojo examples/plot_strtree_queries.mojo
+```
+
 ## Project layout
  
 - `shapely_mojo/shapely/`
