@@ -25,6 +25,8 @@ struct STRtree:
         Tuple[Float64, Float64, Float64, Float64]
     ]  # (minx, miny, maxx, maxy)
     var grid: List[List[Int32]]
+    var stamp: List[Int32]
+    var stamp_gen: Int32
     var nx: Int32
     var ny: Int32
     var minx: Float64
@@ -38,6 +40,8 @@ struct STRtree:
         self.geoms = geoms.copy()
         self.boxes = List[Tuple[Float64, Float64, Float64, Float64]]()
         self.grid = List[List[Int32]]()
+        self.stamp = List[Int32]()
+        self.stamp_gen = 1
         self.nx = 0
         self.ny = 0
         self.minx = 0.0
@@ -54,6 +58,7 @@ struct STRtree:
             self.boxes.append(_bounds_of(g))
 
         self._build_grid()
+        self._init_stamp()
 
     fn _env_intersects(
         self,
@@ -88,6 +93,29 @@ struct STRtree:
             r = 0.5 * (r + x / r)
             i += 1
         return r
+
+    fn _init_stamp(mut self):
+        self.stamp = List[Int32]()
+        self.stamp_gen = 1
+        var n = self.boxes.__len__()
+        var i = 0
+        while i < n:
+            self.stamp.append(0)
+            i += 1
+
+    fn _next_stamp(mut self) -> Int32:
+        # If we ever approach overflow, reset all stamps.
+        if self.stamp_gen >= 2147483646:
+            var i = 0
+            while i < self.stamp.__len__():
+                self.stamp[i] = 0
+                i += 1
+            self.stamp_gen = 1
+            return self.stamp_gen
+        self.stamp_gen += 1
+        if self.stamp_gen == 0:
+            self.stamp_gen = 1
+        return self.stamp_gen
 
     fn _ceil_div(self, a: Int, b: Int) -> Int:
         var q = a / b
@@ -281,130 +309,29 @@ struct STRtree:
         # Naive implementation does not build a tree
         return
 
-    fn query(self, _target: Geometry) -> List[Geometry]:
-        var tb = _target.bounds()
+    fn query(mut self, _target: Geometry) -> List[Geometry]:
+        var idxs = self.query_items(_target)
         var out = List[Geometry]()
         var i = 0
-        for b in self.boxes:
-            if self._env_intersects(b, tb):
-                out.append(self.geoms[i].copy())
+        while i < idxs.__len__():
+            out.append(self.geoms[Int(idxs[i])].copy())
             i += 1
         return out.copy()
 
-    fn query(self, _target: Polygon) -> List[Geometry]:
-        var tb = _target.bounds()
+    fn query(mut self, _target: Polygon) -> List[Geometry]:
+        return self.query(Geometry(_target.copy()))
+
+    fn query(mut self, _target: Geometry, predicate: String) -> List[Geometry]:
+        var idxs = self.query_items(_target, predicate)
         var out = List[Geometry]()
         var i = 0
-        for b in self.boxes:
-            if self._env_intersects(b, tb):
-                out.append(self.geoms[i].copy())
+        while i < idxs.__len__():
+            out.append(self.geoms[Int(idxs[i])].copy())
             i += 1
         return out.copy()
 
-    fn query(self, _target: Geometry, predicate: String) -> List[Geometry]:
-        var cands = self.query(_target)
-        if predicate == "intersects":
-            var out = List[Geometry]()
-            for g in cands:
-                if _intersects(g, _target):
-                    out.append(g.copy())
-            return out.copy()
-        elif predicate == "touches":
-            var out2 = List[Geometry]()
-            for g in cands:
-                if _touches(g, _target):
-                    out2.append(g.copy())
-            return out2.copy()
-        elif predicate == "overlaps":
-            var out3 = List[Geometry]()
-            for g in cands:
-                if _overlaps(g, _target):
-                    out3.append(g.copy())
-            return out3.copy()
-        elif predicate == "contains":
-            var out4 = List[Geometry]()
-            for g in cands:
-                if _contains(g, _target):
-                    out4.append(g.copy())
-            return out4.copy()
-        elif predicate == "within":
-            var out5 = List[Geometry]()
-            for g in cands:
-                if _contains(_target, g):
-                    out5.append(g.copy())
-            return out5.copy()
-        elif predicate == "covers":
-            var out6 = List[Geometry]()
-            for g in cands:
-                if _covers(g, _target):
-                    out6.append(g.copy())
-            return out6.copy()
-        elif predicate == "covered_by":
-            var out7 = List[Geometry]()
-            for g in cands:
-                if _covers(_target, g):
-                    out7.append(g.copy())
-            return out7.copy()
-        elif predicate == "contains_properly":
-            var out10 = List[Geometry]()
-            for g in cands:
-                if _contains_properly(g, _target):
-                    out10.append(g.copy())
-            return out10.copy()
-        return cands.copy()
-
-    fn query(self, _target: Polygon, predicate: String) -> List[Geometry]:
-        var cands = self.query(_target)
-        var tgt = Geometry(_target.copy())
-        if predicate == "intersects":
-            var out = List[Geometry]()
-            for g in cands:
-                if _intersects(g, tgt):
-                    out.append(g.copy())
-            return out.copy()
-        elif predicate == "touches":
-            var out2 = List[Geometry]()
-            for g in cands:
-                if _touches(g, tgt):
-                    out2.append(g.copy())
-            return out2.copy()
-        elif predicate == "overlaps":
-            var out3 = List[Geometry]()
-            for g in cands:
-                if _overlaps(g, tgt):
-                    out3.append(g.copy())
-            return out3.copy()
-        elif predicate == "contains":
-            var out4 = List[Geometry]()
-            for g in cands:
-                if _contains(g, tgt):
-                    out4.append(g.copy())
-            return out4.copy()
-        elif predicate == "within":
-            var out5 = List[Geometry]()
-            for g in cands:
-                if _contains(tgt, g):
-                    out5.append(g.copy())
-            return out5.copy()
-        elif predicate == "covers":
-            var out6 = List[Geometry]()
-            for g in cands:
-                if _covers(g, tgt):
-                    out6.append(g.copy())
-            return out6.copy()
-        elif predicate == "covered_by":
-            var out7 = List[Geometry]()
-            for g in cands:
-                if _covers(tgt, g):
-                    out7.append(g.copy())
-            return out7.copy()
-        elif predicate == "contains_properly":
-            var out10 = List[Geometry]()
-            for g in cands:
-                if _contains_properly(g, tgt):
-                    out10.append(g.copy())
-            return out10.copy()
-        return cands.copy()
+    fn query(mut self, _target: Polygon, predicate: String) -> List[Geometry]:
+        return self.query(Geometry(_target.copy()), predicate)
 
     fn nearest(self, _target: Geometry) -> Geometry:
         if self.boxes.__len__() == 0:
@@ -580,8 +507,9 @@ struct STRtree:
             i += 1
         return (best_idx, best)
 
-    fn _query_indices(self, _target: Geometry) -> List[Int32]:
-        var tb = _target.bounds()
+    fn _query_indices_bounds(
+        mut self, tb: Tuple[Float64, Float64, Float64, Float64]
+    ) -> List[Int32]:
         var out = List[Int32]()
         if self.nx <= 0 or self.ny <= 0:
             var i = 0
@@ -592,12 +520,7 @@ struct STRtree:
             return out.copy()
 
         var cr = self._cell_range_for_bbox(tb)
-        var n = self.boxes.__len__()
-        var seen = List[Bool]()
-        var si = 0
-        while si < n:
-            seen.append(False)
-            si += 1
+        var gen = self._next_stamp()
 
         var ix = cr[0]
         while ix <= cr[2]:
@@ -608,8 +531,8 @@ struct STRtree:
                 while cj < self.grid[cidx].__len__():
                     var gi = self.grid[cidx][cj]
                     var ii = Int(gi)
-                    if not seen[ii]:
-                        seen[ii] = True
+                    if self.stamp[ii] != gen:
+                        self.stamp[ii] = gen
                         if self._env_intersects(self.boxes[ii], tb):
                             out.append(gi)
                     cj += 1
@@ -617,42 +540,53 @@ struct STRtree:
             ix += 1
         return out.copy()
 
-    fn query_items(self, _target: Geometry) -> List[Int32]:
+    fn _query_indices(mut self, _target: Geometry) -> List[Int32]:
+        var tb = _target.copy().bounds()
+        return self._query_indices_bounds(tb)
+
+    fn query_items(mut self, _target: Geometry) -> List[Int32]:
         return self._query_indices(_target)
 
-    fn query_items(self, _target: Geometry, predicate: String) -> List[Int32]:
+    fn query_items(mut self, _target: Geometry, predicate: String) -> List[Int32]:
         return self._query_indices(_target, predicate)
 
     fn _query_indices(
-        self, _target: Geometry, predicate: String
+        mut self, _target: Geometry, predicate: String
     ) -> List[Int32]:
         var out = List[Int32]()
-        var idxs = self._query_indices(_target)
+        var tb = _target.copy().bounds()
+        var idxs = self._query_indices_bounds(tb)
         var j = 0
         while j < idxs.__len__():
             var i = Int(idxs[j])
-            if predicate == "intersects" and _intersects(self.geoms[i], _target):
+            var tgt = _target.copy()
+            if predicate == "intersects" and _intersects(self.geoms[i], tgt):
                 out.append(idxs[j])
-            elif predicate == "touches" and _touches(self.geoms[i], _target):
+            elif predicate == "touches" and _touches(self.geoms[i], tgt):
                 out.append(idxs[j])
-            elif predicate == "overlaps" and _overlaps(self.geoms[i], _target):
+            elif predicate == "overlaps" and _overlaps(self.geoms[i], tgt):
                 out.append(idxs[j])
-            elif predicate == "contains" and _contains(self.geoms[i], _target):
+            elif predicate == "contains" and _contains(self.geoms[i], tgt):
                 out.append(idxs[j])
-            elif predicate == "within" and _contains(_target, self.geoms[i]):
+            elif predicate == "within" and _contains(tgt, self.geoms[i]):
                 out.append(idxs[j])
-            elif predicate == "covers" and _covers(self.geoms[i], _target):
+            elif predicate == "covers" and _covers(self.geoms[i], tgt):
                 out.append(idxs[j])
-            elif predicate == "covered_by" and _covers(_target, self.geoms[i]):
+            elif predicate == "covered_by" and _covers(tgt, self.geoms[i]):
                 out.append(idxs[j])
             elif predicate == "contains_properly" and _contains_properly(
-                self.geoms[i], _target
+                self.geoms[i], tgt
             ):
                 out.append(idxs[j])
             elif (
                 predicate != "intersects"
                 and predicate != "touches"
                 and predicate != "overlaps"
+                and predicate != "contains"
+                and predicate != "within"
+                and predicate != "covers"
+                and predicate != "covered_by"
+                and predicate != "contains_properly"
             ):
                 out.append(idxs[j])
             j += 1
@@ -780,7 +714,7 @@ struct STRtree:
         var idx = t[0]
         return idx
 
-    fn query_bulk(self, _targets: List[Geometry]) -> List[Tuple[Int32, Int32]]:
+    fn query_bulk(mut self, _targets: List[Geometry]) -> List[Tuple[Int32, Int32]]:
         var pairs = List[Tuple[Int32, Int32]]()
         var ti = 0
         while ti < _targets.__len__():
@@ -793,7 +727,7 @@ struct STRtree:
         return pairs.copy()
 
     fn query_bulk(
-        self, _targets: List[Geometry], predicate: String
+        mut self, _targets: List[Geometry], predicate: String
     ) -> List[Tuple[Int32, Int32]]:
         var pairs = List[Tuple[Int32, Int32]]()
         var ti = 0
