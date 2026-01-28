@@ -36,6 +36,14 @@ struct STRtree:
     var cell_w: Float64
     var cell_h: Float64
 
+    var tree_nodes_bbox: List[Tuple[Float64, Float64, Float64, Float64]]
+    var tree_nodes_child_start: List[Int32]
+    var tree_nodes_child_count: List[Int32]
+    var tree_nodes_is_leaf: List[Bool]
+    var tree_children: List[Int32]
+    var tree_root: Int32
+    var tree_max_children: Int32
+
     fn __init__(out self, geoms: List[Geometry]):
         self.geoms = geoms.copy()
         self.boxes = List[Tuple[Float64, Float64, Float64, Float64]]()
@@ -51,14 +59,21 @@ struct STRtree:
         self.cell_w = 1.0
         self.cell_h = 1.0
 
+        self.tree_nodes_bbox = List[Tuple[Float64, Float64, Float64, Float64]]()
+        self.tree_nodes_child_start = List[Int32]()
+        self.tree_nodes_child_count = List[Int32]()
+        self.tree_nodes_is_leaf = List[Bool]()
+        self.tree_children = List[Int32]()
+        self.tree_root = -1
+        self.tree_max_children = 16
+
         fn _bounds_of(g: Geometry) -> (Float64, Float64, Float64, Float64):
             return g.bounds()
 
         for g in self.geoms:
             self.boxes.append(_bounds_of(g))
 
-        self._build_grid()
-        self._init_stamp()
+        self._build_strtree(self.tree_max_children)
 
     fn _env_intersects(
         self,
@@ -94,6 +109,25 @@ struct STRtree:
             i += 1
         return r
 
+    fn _union_bbox(
+        self,
+        a: Tuple[Float64, Float64, Float64, Float64],
+        b: Tuple[Float64, Float64, Float64, Float64],
+    ) -> Tuple[Float64, Float64, Float64, Float64]:
+        var minx = a[0]
+        var miny = a[1]
+        var maxx = a[2]
+        var maxy = a[3]
+        if b[0] < minx:
+            minx = b[0]
+        if b[1] < miny:
+            miny = b[1]
+        if b[2] > maxx:
+            maxx = b[2]
+        if b[3] > maxy:
+            maxy = b[3]
+        return (minx, miny, maxx, maxy)
+
     fn _init_stamp(mut self):
         self.stamp = List[Int32]()
         self.stamp_gen = 1
@@ -118,7 +152,7 @@ struct STRtree:
         return self.stamp_gen
 
     fn _ceil_div(self, a: Int, b: Int) -> Int:
-        var q = a / b
+        var q: Int = Int(Float64(a) / Float64(b))
         if a % b != 0:
             q += 1
         return q
@@ -259,51 +293,181 @@ struct STRtree:
             i += 1
         return (minx, miny, maxx, maxy)
 
-    fn _qsort_geom_by_minx(self, idx: List[Int32], lo: Int, hi: Int):
-        var i = lo
-        var j = hi
-        var pivot = self.boxes[idx[(lo + hi) / 2]][0]
-        while i <= j:
-            while self.boxes[idx[i]][0] < pivot:
-                i += 1
-            while self.boxes[idx[j]][0] > pivot:
+    fn _qsort_geom_by_minx(self, mut idx: List[Int32], lo: Int, hi: Int):
+        # Insertion sort for stability and to avoid recursive quicksort (compiler crash workaround)
+        if hi <= lo:
+            return
+        var i = lo + 1
+        while i <= hi:
+            var key = idx[i]
+            var keyx = self.boxes[key][0]
+            var j = i - 1
+            while j >= lo and self.boxes[idx[j]][0] > keyx:
+                idx[j + 1] = idx[j]
                 j -= 1
-            if i <= j:
-                var tmp = idx[i]
-                idx[i] = idx[j]
-                idx[j] = tmp
-                i += 1
-                j -= 1
-        if lo < j:
-            self._qsort_geom_by_minx(idx, lo, j)
-        if i < hi:
-            self._qsort_geom_by_minx(idx, i, hi)
+            idx[j + 1] = key
+            i += 1
 
     fn _qsort_geom_slice_by_miny(
-        self, idx: List[Int32], start: Int, end_excl: Int
+        self, mut idx: List[Int32], start: Int, end_excl: Int
     ):
-        fn sort_range(self_ref: STRtree, a: List[Int32], lo: Int, hi: Int):
-            var i = lo
-            var j = hi
-            var pivot = self_ref.boxes[a[(lo + hi) / 2]][1]
-            while i <= j:
-                while self_ref.boxes[a[i]][1] < pivot:
-                    i += 1
-                while self_ref.boxes[a[j]][1] > pivot:
-                    j -= 1
-                if i <= j:
-                    var tmp = a[i]
-                    a[i] = a[j]
-                    a[j] = tmp
-                    i += 1
-                    j -= 1
-            if lo < j:
-                sort_range(self_ref, a, lo, j)
-            if i < hi:
-                sort_range(self_ref, a, i, hi)
+        # Insertion sort slice by miny
+        if end_excl - start <= 1:
+            return
+        var i = start + 1
+        while i < end_excl:
+            var key = idx[i]
+            var keyy = self.boxes[key][1]
+            var j = i - 1
+            while j >= start and self.boxes[idx[j]][1] > keyy:
+                idx[j + 1] = idx[j]
+                j -= 1
+            idx[j + 1] = key
+            i += 1
 
-        if end_excl - start > 1:
-            sort_range(self, idx, start, end_excl - 1)
+    fn _qsort_node_by_minx(self, mut idx: List[Int32], lo: Int, hi: Int):
+        if hi <= lo:
+            return
+        var i = lo + 1
+        while i <= hi:
+            var key = idx[i]
+            var keyx = self.tree_nodes_bbox[Int(key)][0]
+            var j = i - 1
+            while j >= lo and self.tree_nodes_bbox[Int(idx[j])][0] > keyx:
+                idx[j + 1] = idx[j]
+                j -= 1
+            idx[j + 1] = key
+            i += 1
+
+    fn _qsort_node_slice_by_miny(
+        self, mut idx: List[Int32], start: Int, end_excl: Int
+    ):
+        if end_excl - start <= 1:
+            return
+        var i = start + 1
+        while i < end_excl:
+            var key = idx[i]
+            var keyy = self.tree_nodes_bbox[Int(key)][1]
+            var j = i - 1
+            while j >= start and self.tree_nodes_bbox[Int(idx[j])][1] > keyy:
+                idx[j + 1] = idx[j]
+                j -= 1
+            idx[j + 1] = key
+            i += 1
+
+    fn _build_strtree(mut self, max_children: Int32):
+        self.tree_nodes_bbox = List[Tuple[Float64, Float64, Float64, Float64]]()
+        self.tree_nodes_child_start = List[Int32]()
+        self.tree_nodes_child_count = List[Int32]()
+        self.tree_nodes_is_leaf = List[Bool]()
+        self.tree_children = List[Int32]()
+        self.tree_root = -1
+        self.tree_max_children = max_children
+
+        var n = self.boxes.__len__()
+        if n == 0:
+            return
+
+        var M = Int(max_children)
+        if M < 2:
+            M = 2
+
+        var idx = List[Int32]()
+        var i = 0
+        while i < n:
+            idx.append(Int32(i))
+            i += 1
+        if idx.__len__() > 1:
+            self._qsort_geom_by_minx(idx, 0, idx.__len__() - 1)
+
+        var leaf_count = self._ceil_div(idx.__len__(), M)
+        var slices = self._ceil_div(Int(self._sqrt_f64(Float64(leaf_count))), 1)
+        if slices < 1:
+            slices = 1
+        var slice_size = self._ceil_div(idx.__len__(), slices)
+
+        var s = 0
+        while s < slices:
+            var start = s * slice_size
+            var end_excl = start + slice_size
+            if end_excl > idx.__len__():
+                end_excl = idx.__len__()
+            if start < end_excl:
+                self._qsort_geom_slice_by_miny(idx, start, end_excl)
+            s += 1
+
+        var level = List[Int32]()
+        var p = 0
+        while p < idx.__len__():
+            var endp = p + M
+            if endp > idx.__len__():
+                endp = idx.__len__()
+
+            var child_start = self.tree_children.__len__()
+            var bb = self.boxes[Int(idx[p])]
+            var j = p
+            while j < endp:
+                var gid = idx[j]
+                self.tree_children.append(gid)
+                bb = self._union_bbox(bb, self.boxes[Int(gid)])
+                j += 1
+
+            var node_id = Int32(self.tree_nodes_bbox.__len__())
+            self.tree_nodes_bbox.append(bb)
+            self.tree_nodes_child_start.append(Int32(child_start))
+            self.tree_nodes_child_count.append(Int32(endp - p))
+            self.tree_nodes_is_leaf.append(True)
+            level.append(node_id)
+            p = endp
+
+        while level.__len__() > 1:
+            var nidx = level.copy()
+            if nidx.__len__() > 1:
+                self._qsort_node_by_minx(nidx, 0, nidx.__len__() - 1)
+
+            var parent_count = self._ceil_div(nidx.__len__(), M)
+            var pslices = self._ceil_div(Int(self._sqrt_f64(Float64(parent_count))), 1)
+            if pslices < 1:
+                pslices = 1
+            var pslice_size = self._ceil_div(nidx.__len__(), pslices)
+
+            var ps = 0
+            while ps < pslices:
+                var start2 = ps * pslice_size
+                var end2 = start2 + pslice_size
+                if end2 > nidx.__len__():
+                    end2 = nidx.__len__()
+                if start2 < end2:
+                    self._qsort_node_slice_by_miny(nidx, start2, end2)
+                ps += 1
+
+            var next_level = List[Int32]()
+            var pp = 0
+            while pp < nidx.__len__():
+                var endpp = pp + M
+                if endpp > nidx.__len__():
+                    endpp = nidx.__len__()
+
+                var cstart = self.tree_children.__len__()
+                var bb2 = self.tree_nodes_bbox[Int(nidx[pp])]
+                var jj = pp
+                while jj < endpp:
+                    var cid = nidx[jj]
+                    self.tree_children.append(cid)
+                    bb2 = self._union_bbox(bb2, self.tree_nodes_bbox[Int(cid)])
+                    jj += 1
+
+                var pid = Int32(self.tree_nodes_bbox.__len__())
+                self.tree_nodes_bbox.append(bb2)
+                self.tree_nodes_child_start.append(Int32(cstart))
+                self.tree_nodes_child_count.append(Int32(endpp - pp))
+                self.tree_nodes_is_leaf.append(False)
+                next_level.append(pid)
+                pp = endpp
+
+            level = next_level.copy()
+
+        self.tree_root = level[0]
 
     fn _build(self, max_children: Int32):
         # Naive implementation does not build a tree
@@ -361,61 +525,80 @@ struct STRtree:
         return out.copy()
 
     fn _nearest_idx(self, _target: Geometry) -> (Int32, Float64):
-        if self.boxes.__len__() == 0:
+        if self.boxes.__len__() == 0 or self.tree_root == -1:
             return (-1, 1.7976931348623157e308)
-        if self.nx <= 0 or self.ny <= 0:
-            return self._nearest_idx_fallback(_target)
 
-        var tb = _target.bounds()
-        var cx = 0.5 * (tb[0] + tb[2])
-        var cy = 0.5 * (tb[1] + tb[3])
-        var c = self._cell_coords_of(cx, cy)
-        var ix0 = c[0]
-        var iy0 = c[1]
-
+        var tb = _target.copy().bounds()
         var best = 1.7976931348623157e308
+        var best2 = 1.7976931348623157e308
         var best_idx: Int32 = -1
-        var ring: Int32 = 0
-        var max_ring = self.nx
-        if self.ny > max_ring:
-            max_ring = self.ny
 
-        while ring <= max_ring:
-            var ix = ix0 - ring
-            while ix <= ix0 + ring:
-                if ix < 0 or ix >= self.nx:
-                    ix += 1
-                    continue
-                var iy = iy0 - ring
-                while iy <= iy0 + ring:
-                    if iy < 0 or iy >= self.ny:
-                        iy += 1
-                        continue
-                    if ring != 0 and ix != ix0 - ring and ix != ix0 + ring and iy != iy0 - ring and iy != iy0 + ring:
-                        iy += 1
-                        continue
-                    var cidx = self._cell_index(ix, iy)
-                    var cj = 0
-                    while cj < self.grid[cidx].__len__():
-                        var gi = self.grid[cidx][cj]
+        var stack = List[Int32]()
+        stack.append(self.tree_root)
+
+        while stack.__len__() > 0:
+            var top = stack.__len__() - 1
+            var nid = stack[top]
+            stack = stack[:top]
+
+            var nidx = Int(nid)
+            var nb = self.tree_nodes_bbox[nidx]
+            var nlb2 = self._env_dist2(nb, tb)
+            if nlb2 > best2:
+                continue
+
+            if self.tree_nodes_is_leaf[nidx]:
+                var start = Int(self.tree_nodes_child_start[nidx])
+                var cnt = Int(self.tree_nodes_child_count[nidx])
+                var j = 0
+                while j < cnt:
+                    var gid = self.tree_children[start + j]
+                    var gi = Int(gid)
+                    var lb2 = self._env_dist2(self.boxes[gi], tb)
+                    if lb2 <= best2:
                         var tgt = _target.copy()
-                        var d = _distance(self.geoms[Int(gi)], tgt)
+                        var d = _distance(self.geoms[gi], tgt)
                         if d < best:
                             best = d
-                            best_idx = gi
-                            if best == 0.0:
+                            best2 = d * d
+                            best_idx = gid
+                            if best2 == 0.0:
                                 return (best_idx, best)
-                        cj += 1
-                    iy += 1
-                ix += 1
+                    j += 1
+            else:
+                # Visit child nodes, preferring smaller bbox distances first.
+                var start2 = Int(self.tree_nodes_child_start[nidx])
+                var cnt2 = Int(self.tree_nodes_child_count[nidx])
+                var kids = List[Int32]()
+                var lbs = List[Float64]()
+                var j2 = 0
+                while j2 < cnt2:
+                    var cid = self.tree_children[start2 + j2]
+                    var lb2 = self._env_dist2(self.tree_nodes_bbox[Int(cid)], tb)
+                    if lb2 <= best2:
+                        kids.append(cid)
+                        lbs.append(lb2)
+                    j2 += 1
 
-            if best_idx != -1:
-                var bound = Float64(ring) * self.cell_w
-                if self.cell_h < self.cell_w:
-                    bound = Float64(ring) * self.cell_h
-                if bound > best:
-                    break
-            ring += 1
+                # insertion sort by lbs ascending
+                var ii = 1
+                while ii < kids.__len__():
+                    var key_id = kids[ii]
+                    var key_lb = lbs[ii]
+                    var jj = ii - 1
+                    while jj >= 0 and lbs[jj] > key_lb:
+                        kids[jj + 1] = kids[jj]
+                        lbs[jj + 1] = lbs[jj]
+                        jj -= 1
+                    kids[jj + 1] = key_id
+                    lbs[jj + 1] = key_lb
+                    ii += 1
+
+                # push in reverse so smallest processed next
+                var kk = kids.__len__() - 1
+                while kk >= 0:
+                    stack.append(kids[kk])
+                    kk -= 1
 
         return (best_idx, best)
 
@@ -436,58 +619,77 @@ struct STRtree:
         return (best_idx, best)
 
     fn _nearest_idx(self, _target: Point) -> (Int32, Float64):
-        if self.boxes.__len__() == 0:
+        if self.boxes.__len__() == 0 or self.tree_root == -1:
             return (-1, 1.7976931348623157e308)
-        if self.nx <= 0 or self.ny <= 0:
-            return self._nearest_idx_fallback_point(_target)
 
-        var c = self._cell_coords_of(_target.x, _target.y)
-        var ix0 = c[0]
-        var iy0 = c[1]
-
+        var tb = (_target.x, _target.y, _target.x, _target.y)
         var best = 1.7976931348623157e308
+        var best2 = 1.7976931348623157e308
         var best_idx: Int32 = -1
-        var ring: Int32 = 0
-        var max_ring = self.nx
-        if self.ny > max_ring:
-            max_ring = self.ny
 
-        while ring <= max_ring:
-            var ix = ix0 - ring
-            while ix <= ix0 + ring:
-                if ix < 0 or ix >= self.nx:
-                    ix += 1
-                    continue
-                var iy = iy0 - ring
-                while iy <= iy0 + ring:
-                    if iy < 0 or iy >= self.ny:
-                        iy += 1
-                        continue
-                    if ring != 0 and ix != ix0 - ring and ix != ix0 + ring and iy != iy0 - ring and iy != iy0 + ring:
-                        iy += 1
-                        continue
-                    var cidx = self._cell_index(ix, iy)
-                    var cj = 0
-                    while cj < self.grid[cidx].__len__():
-                        var gi = self.grid[cidx][cj]
+        var stack = List[Int32]()
+        stack.append(self.tree_root)
+
+        while stack.__len__() > 0:
+            var top = stack.__len__() - 1
+            var nid = stack[top]
+            stack = stack[:top]
+
+            var nidx = Int(nid)
+            var nb = self.tree_nodes_bbox[nidx]
+            var nlb2 = self._env_dist2(nb, tb)
+            if nlb2 > best2:
+                continue
+
+            if self.tree_nodes_is_leaf[nidx]:
+                var start = Int(self.tree_nodes_child_start[nidx])
+                var cnt = Int(self.tree_nodes_child_count[nidx])
+                var j = 0
+                while j < cnt:
+                    var gid = self.tree_children[start + j]
+                    var gi = Int(gid)
+                    var lb2 = self._env_dist2(self.boxes[gi], tb)
+                    if lb2 <= best2:
                         var pt = _target.copy()
-                        var d = _distance(self.geoms[Int(gi)], pt)
+                        var d = _distance(self.geoms[gi], pt)
                         if d < best:
                             best = d
-                            best_idx = gi
-                            if best == 0.0:
+                            best2 = d * d
+                            best_idx = gid
+                            if best2 == 0.0:
                                 return (best_idx, best)
-                        cj += 1
-                    iy += 1
-                ix += 1
+                    j += 1
+            else:
+                var start2 = Int(self.tree_nodes_child_start[nidx])
+                var cnt2 = Int(self.tree_nodes_child_count[nidx])
+                var kids = List[Int32]()
+                var lbs = List[Float64]()
+                var j2 = 0
+                while j2 < cnt2:
+                    var cid = self.tree_children[start2 + j2]
+                    var lb2 = self._env_dist2(self.tree_nodes_bbox[Int(cid)], tb)
+                    if lb2 <= best2:
+                        kids.append(cid)
+                        lbs.append(lb2)
+                    j2 += 1
 
-            if best_idx != -1:
-                var bound = Float64(ring) * self.cell_w
-                if self.cell_h < self.cell_w:
-                    bound = Float64(ring) * self.cell_h
-                if bound > best:
-                    break
-            ring += 1
+                var ii = 1
+                while ii < kids.__len__():
+                    var key_id = kids[ii]
+                    var key_lb = lbs[ii]
+                    var jj = ii - 1
+                    while jj >= 0 and lbs[jj] > key_lb:
+                        kids[jj + 1] = kids[jj]
+                        lbs[jj + 1] = lbs[jj]
+                        jj -= 1
+                    kids[jj + 1] = key_id
+                    lbs[jj + 1] = key_lb
+                    ii += 1
+
+                var kk = kids.__len__() - 1
+                while kk >= 0:
+                    stack.append(kids[kk])
+                    kk -= 1
 
         return (best_idx, best)
 
@@ -511,33 +713,35 @@ struct STRtree:
         mut self, tb: Tuple[Float64, Float64, Float64, Float64]
     ) -> List[Int32]:
         var out = List[Int32]()
-        if self.nx <= 0 or self.ny <= 0:
-            var i = 0
-            for b in self.boxes:
-                if self._env_intersects(b, tb):
-                    out.append(Int32(i))
-                i += 1
+        if self.tree_root == -1:
             return out.copy()
 
-        var cr = self._cell_range_for_bbox(tb)
-        var gen = self._next_stamp()
+        var stack = List[Int32]()
+        stack.append(self.tree_root)
+        var sp = 0
+        while sp < stack.__len__():
+            var nid = stack[sp]
+            sp += 1
+            var nidx = Int(nid)
+            if not self._env_intersects(self.tree_nodes_bbox[nidx], tb):
+                continue
+            if self.tree_nodes_is_leaf[nidx]:
+                var start = Int(self.tree_nodes_child_start[nidx])
+                var cnt = Int(self.tree_nodes_child_count[nidx])
+                var j = 0
+                while j < cnt:
+                    var gid = self.tree_children[start + j]
+                    if self._env_intersects(self.boxes[Int(gid)], tb):
+                        out.append(gid)
+                    j += 1
+            else:
+                var start2 = Int(self.tree_nodes_child_start[nidx])
+                var cnt2 = Int(self.tree_nodes_child_count[nidx])
+                var j2 = 0
+                while j2 < cnt2:
+                    stack.append(self.tree_children[start2 + j2])
+                    j2 += 1
 
-        var ix = cr[0]
-        while ix <= cr[2]:
-            var iy = cr[1]
-            while iy <= cr[3]:
-                var cidx = self._cell_index(ix, iy)
-                var cj = 0
-                while cj < self.grid[cidx].__len__():
-                    var gi = self.grid[cidx][cj]
-                    var ii = Int(gi)
-                    if self.stamp[ii] != gen:
-                        self.stamp[ii] = gen
-                        if self._env_intersects(self.boxes[ii], tb):
-                            out.append(gi)
-                    cj += 1
-                iy += 1
-            ix += 1
         return out.copy()
 
     fn _query_indices(mut self, _target: Geometry) -> List[Int32]:
