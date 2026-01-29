@@ -342,7 +342,7 @@ fn polygonize(lines) -> GeometryCollection:
     return GeometryCollection(polys)
 
 
-fn polygonize_full(lines: Geometry) -> (GeometryCollection, MultiLineString, MultiLineString, MultiLineString):
+fn polygonize_full(lines: Geometry) -> Tuple[GeometryCollection, MultiLineString, MultiLineString, MultiLineString]:
     # Collect all LineStrings from input
     var lns = List[LineString]()
     if lines.is_linestring():
@@ -577,26 +577,26 @@ fn clamp01(t: Float64) -> Float64:
     return t
 
 
-fn closest_on_seg(ax: Float64, ay: Float64, bx: Float64, by: Float64, px: Float64, py: Float64) -> (Float64, Float64, Float64):
-    let vx = bx - ax
-    let vy = by - ay
-    let vlen2 = vx * vx + vy * vy
+fn closest_on_seg(ax: Float64, ay: Float64, bx: Float64, by: Float64, px: Float64, py: Float64) -> Tuple[Float64, Float64, Float64]:
+    var vx = bx - ax
+    var vy = by - ay
+    var vlen2 = vx * vx + vy * vy
     var t = 0.0
     if vlen2 > 0.0:
         t = ((px - ax) * vx + (py - ay) * vy) / vlen2
     t = clamp01(t)
-    let cx = ax + t * vx
-    let cy = ay + t * vy
-    let dx = px - cx
-    let dy = py - cy
+    var cx = ax + t * vx
+    var cy = ay + t * vy
+    var dx = px - cx
+    var dy = py - cy
     return (cx, cy, dx * dx + dy * dy)
 
 
-fn nearest_points(a: Point, b: Point) -> (Point, Point):
+fn nearest_points(a: Point, b: Point) -> Tuple[Point, Point]:
     return (a, b)
 
 
-fn nearest_points(p: Point, ls: LineString) -> (Point, Point):
+fn nearest_points(p: Point, ls: LineString) -> Tuple[Point, Point]:
     var best = 1.7976931348623157e308
     var bx = p.x
     var by = p.y
@@ -611,12 +611,12 @@ fn nearest_points(p: Point, ls: LineString) -> (Point, Point):
     return (Point(bx, by), p)
 
 
-fn nearest_points(ls: LineString, p: Point) -> (Point, Point):
+fn nearest_points(ls: LineString, p: Point) -> Tuple[Point, Point]:
     var (q, _p) = nearest_points(p, ls)
     return (q, p)
 
 
-fn nearest_points(l1: LineString, l2: LineString) -> (Point, Point):
+fn nearest_points(l1: LineString, l2: LineString) -> Tuple[Point, Point]:
     var best = 1.7976931348623157e308
     var p1 = Point(0.0, 0.0)
     var p2 = Point(0.0, 0.0)
@@ -660,7 +660,7 @@ fn clip_by_rect(ls: LineString, xmin: Float64, ymin: Float64, xmax: Float64, yma
 
     fn clip_seg(x0: Float64, y0: Float64, x1: Float64, y1: Float64,
                 xmin: Float64, ymin: Float64, xmax: Float64, ymax: Float64,
-               ) -> (Bool, Float64, Float64, Float64, Float64):
+               ) -> Tuple[Bool, Float64, Float64, Float64, Float64]:
         var t0 = 0.0
         var t1 = 1.0
         var dx = x1 - x0

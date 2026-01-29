@@ -31,10 +31,10 @@ fn on_segment(
 
 
 fn segments_intersect(
-    a1: (Float64, Float64),
-    a2: (Float64, Float64),
-    b1: (Float64, Float64),
-    b2: (Float64, Float64),
+    a1: Tuple[Float64, Float64],
+    a2: Tuple[Float64, Float64],
+    b1: Tuple[Float64, Float64],
+    b2: Tuple[Float64, Float64],
 ) -> Bool:
     var o1 = orientation(a1[0], a1[1], a2[0], a2[1], b1[0], b1[1])
     var o2 = orientation(a1[0], a1[1], a2[0], a2[1], b2[0], b2[1])

@@ -121,7 +121,7 @@ struct Geometry(Copyable, Movable):
             return self.payload[MultiPolygon].to_wkt()
         return "GEOMETRYCOLLECTION EMPTY"
 
-    fn bounds(self) -> (Float64, Float64, Float64, Float64):
+    fn bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
         if self.payload.isa[Point]():
             return self.payload[Point].bounds()
         if self.payload.isa[LineString]():
@@ -174,7 +174,7 @@ struct GEOSException:
         return
 
 
-fn geos_version() -> (Int32, Int32, Int32):
+fn geos_version() -> Tuple[Int32, Int32, Int32]:
     return (0, 0, 0)
 
 
@@ -182,7 +182,7 @@ fn geos_version_string() -> String:
     return "0.0.0"
 
 
-fn geos_capi_version() -> (Int32, Int32, Int32):
+fn geos_capi_version() -> Tuple[Int32, Int32, Int32]:
     return (0, 0, 0)
 
 

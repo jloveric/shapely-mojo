@@ -212,12 +212,12 @@ fn compute_intersections(segs: List[Segment]) -> List[List[Float64]]:
 
 fn build_edges(
     a: Polygon, b: Polygon, op: Int32
-) -> (
+) -> Tuple[
     List[Tuple[Float64, Float64]],
     List[DEdge],
     List[Bool],
     List[List[Int32]],
-):
+]:
     var segs = List[Segment]()
     add_ring_segments(a.shell, 0, segs)
     for h in a.holes:

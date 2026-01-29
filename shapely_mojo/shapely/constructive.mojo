@@ -58,7 +58,7 @@ fn _circle_polygon(cx: Float64, cy: Float64, r: Float64) -> Polygon:
     return Polygon(LinearRing(pts))
 
 
-fn _unit_tangent(ax: Float64, ay: Float64, bx: Float64, by: Float64) -> (Float64, Float64):
+fn _unit_tangent(ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Tuple[Float64, Float64]:
     var dx = bx - ax
     var dy = by - ay
     var len = sqrt_f64(dx * dx + dy * dy)
@@ -67,7 +67,7 @@ fn _unit_tangent(ax: Float64, ay: Float64, bx: Float64, by: Float64) -> (Float64
     return (dx / len, dy / len)
 
 
-fn _unit_normal_left(tx: Float64, ty: Float64) -> (Float64, Float64):
+fn _unit_normal_left(tx: Float64, ty: Float64) -> Tuple[Float64, Float64]:
     return (-ty, tx)
 
 
@@ -95,7 +95,7 @@ fn _reverse_coords(coords: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64,
         out.append(coords[i])
         i -= 1
     _close_ring(out)
-    return out^
+    return out.copy()
 
 
 fn _collect_coords(geom: Geometry, mut out: List[Tuple[Float64, Float64]]):
@@ -191,7 +191,7 @@ fn _hull_ring(points: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Floa
             var cr = _cross(b[0] - a[0], b[1] - a[1], p[0] - b[0], p[1] - b[1])
             if cr > 0.0:
                 break
-            lower = lower[: lower.__len__() - 1]
+            var _ = lower.pop()
         lower.append(p)
 
     var upper = List[Tuple[Float64, Float64]]()
@@ -204,7 +204,7 @@ fn _hull_ring(points: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Floa
             var cr = _cross(b[0] - a[0], b[1] - a[1], p[0] - b[0], p[1] - b[1])
             if cr > 0.0:
                 break
-            upper = upper[: upper.__len__() - 1]
+            var _ = upper.pop()
         upper.append(p)
         i -= 1
 
@@ -266,8 +266,8 @@ fn _simplify_linestring(ls: LineString, tol: Float64) -> LineString:
     while stack_a.__len__() > 0:
         var a = stack_a[stack_a.__len__() - 1]
         var b = stack_b[stack_b.__len__() - 1]
-        stack_a = stack_a[: stack_a.__len__() - 1]
-        stack_b = stack_b[: stack_b.__len__() - 1]
+        var _ = stack_a.pop()
+        var _2 = stack_b.pop()
 
         var ax = ls.coords[a][0]
         var ay = ls.coords[a][1]
@@ -307,7 +307,7 @@ fn _simplify_ring_coords(coords: List[Tuple[Float64, Float64]], tol: Float64) ->
     var first = open[0]
     var last = open[open.__len__() - 1]
     if first[0] == last[0] and first[1] == last[1]:
-        open = open[: open.__len__() - 1]
+        var _ = open.pop()
     if open.__len__() < 3:
         return List[Tuple[Float64, Float64]]()
     var simplified = _simplify_linestring(LineString(open), tol).coords.copy()
@@ -330,7 +330,7 @@ fn _line_intersection(
     p2y: Float64,
     d2x: Float64,
     d2y: Float64,
-) -> (Tuple[Float64, Float64], Bool):
+) -> Tuple[Tuple[Float64, Float64], Bool]:
     # Solve p1 + t*d1 = p2 + u*d2
     var denom = _cross(d1x, d1y, d2x, d2y)
     if denom == 0.0:
@@ -350,7 +350,7 @@ fn _line_intersection_tu(
     p2y: Float64,
     d2x: Float64,
     d2y: Float64,
-) -> (Tuple[Float64, Float64], Float64, Float64, Bool):
+) -> Tuple[Tuple[Float64, Float64], Float64, Float64, Bool]:
     # Solve p1 + t*d1 = p2 + u*d2
     var denom = _cross(d1x, d1y, d2x, d2y)
     if denom == 0.0:

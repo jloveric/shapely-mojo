@@ -46,7 +46,7 @@ struct Point(Copyable, Movable):
             )
         return "POINT (" + self.x.__str__() + " " + self.y.__str__() + ")"
 
-    fn bounds(self) -> (Float64, Float64, Float64, Float64):
+    fn bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
         return (self.x, self.y, self.x, self.y)
 
 
@@ -69,7 +69,7 @@ struct LineString(Copyable, Movable):
             s = s + c[0].__str__() + " " + c[1].__str__()
         return s + ")"
 
-    fn bounds(self) -> (Float64, Float64, Float64, Float64):
+    fn bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
         if self.coords.__len__() == 0:
             return (0.0, 0.0, 0.0, 0.0)
         var minx = self.coords[0][0]
@@ -119,7 +119,7 @@ struct LinearRing(Copyable, Movable):
             s = s + c[0].__str__() + " " + c[1].__str__()
         return s + ")"
 
-    fn bounds(self) -> (Float64, Float64, Float64, Float64):
+    fn bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
         if self.coords.__len__() == 0:
             return (0.0, 0.0, 0.0, 0.0)
         var minx = self.coords[0][0]
@@ -188,7 +188,7 @@ struct Polygon(Copyable, Movable):
             s = s + ")"
         return s + ")"
 
-    fn bounds(self) -> (Float64, Float64, Float64, Float64):
+    fn bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
         if self.shell.coords.__len__() == 0:
             return (0.0, 0.0, 0.0, 0.0)
         var minx = self.shell.coords[0][0]
@@ -254,7 +254,7 @@ struct GeometryCollection(Copyable, Movable):
             s = s + g.to_wkt()
         return s + ")"
 
-    fn bounds(self) -> (Float64, Float64, Float64, Float64):
+    fn bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
         if self.geoms.__len__() == 0:
             return (0.0, 0.0, 0.0, 0.0)
         var inited = False
@@ -301,7 +301,7 @@ struct MultiPoint(Copyable, Movable):
             s = s + p.x.__str__() + " " + p.y.__str__()
         return s + ")"
 
-    fn bounds(self) -> (Float64, Float64, Float64, Float64):
+    fn bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
         if self.points.__len__() == 0:
             return (0.0, 0.0, 0.0, 0.0)
         var minx = self.points[0].x
@@ -346,7 +346,7 @@ struct MultiLineString(Copyable, Movable):
             s = s + ")"
         return s + ")"
 
-    fn bounds(self) -> (Float64, Float64, Float64, Float64):
+    fn bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
         if self.lines.__len__() == 0:
             return (0.0, 0.0, 0.0, 0.0)
         var inited = False
@@ -417,7 +417,7 @@ struct MultiPolygon(Copyable, Movable):
             s = s + ")"
         return s + ")"
 
-    fn bounds(self) -> (Float64, Float64, Float64, Float64):
+    fn bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
         if self.polys.__len__() == 0:
             return (0.0, 0.0, 0.0, 0.0)
         var inited = False

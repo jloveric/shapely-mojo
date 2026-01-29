@@ -67,7 +67,7 @@ struct STRtree:
         self.tree_root = -1
         self.tree_max_children = 16
 
-        fn _bounds_of(g: Geometry) -> (Float64, Float64, Float64, Float64):
+        fn _bounds_of(g: Geometry) -> Tuple[Float64, Float64, Float64, Float64]:
             return g.bounds()
 
         for g in self.geoms:
@@ -167,7 +167,7 @@ struct STRtree:
     fn _cell_index(self, ix: Int32, iy: Int32) -> Int:
         return Int(ix) + Int(iy) * Int(self.nx)
 
-    fn _cell_coords_of(self, x: Float64, y: Float64) -> (Int32, Int32):
+    fn _cell_coords_of(self, x: Float64, y: Float64) -> Tuple[Int32, Int32]:
         if self.nx <= 0 or self.ny <= 0:
             return (0, 0)
         var fx = (x - self.minx) / self.cell_w
@@ -180,7 +180,7 @@ struct STRtree:
 
     fn _cell_range_for_bbox(
         self, b: Tuple[Float64, Float64, Float64, Float64]
-    ) -> (Int32, Int32, Int32, Int32):
+    ) -> Tuple[Int32, Int32, Int32, Int32]:
         if self.nx <= 0 or self.ny <= 0:
             return (0, 0, -1, -1)
         var fx0 = (b[0] - self.minx) / self.cell_w
@@ -268,13 +268,13 @@ struct STRtree:
 
     fn _node_union_boxes(
         self, ids: List[Int32]
-    ) -> (Float64, Float64, Float64, Float64):
+    ) -> Tuple[Float64, Float64, Float64, Float64]:
         # Stub retained for compatibility; not used in naive implementation
         return (0.0, 0.0, 0.0, 0.0)
 
     fn _geom_union_boxes(
         self, ids: List[Int32]
-    ) -> (Float64, Float64, Float64, Float64):
+    ) -> Tuple[Float64, Float64, Float64, Float64]:
         var minx = 1.7976931348623157e308
         var miny = 1.7976931348623157e308
         var maxx = -1.7976931348623157e308
@@ -524,7 +524,7 @@ struct STRtree:
             r += 1
         return out.copy()
 
-    fn _nearest_idx(self, _target: Geometry) -> (Int32, Float64):
+    fn _nearest_idx(self, _target: Geometry) -> Tuple[Int32, Float64]:
         if self.boxes.__len__() == 0 or self.tree_root == -1:
             return (-1, 1.7976931348623157e308)
 
@@ -600,7 +600,7 @@ struct STRtree:
 
         return (best_idx, best)
 
-    fn _nearest_idx_fallback(self, _target: Geometry) -> (Int32, Float64):
+    fn _nearest_idx_fallback(self, _target: Geometry) -> Tuple[Int32, Float64]:
         var best = 1.7976931348623157e308
         var best_idx: Int32 = -1
         var i = 0
@@ -616,7 +616,7 @@ struct STRtree:
             i += 1
         return (best_idx, best)
 
-    fn _nearest_idx(self, _target: Point) -> (Int32, Float64):
+    fn _nearest_idx(self, _target: Point) -> Tuple[Int32, Float64]:
         if self.boxes.__len__() == 0 or self.tree_root == -1:
             return (-1, 1.7976931348623157e308)
 
@@ -689,7 +689,7 @@ struct STRtree:
 
         return (best_idx, best)
 
-    fn _nearest_idx_fallback_point(self, _target: Point) -> (Int32, Float64):
+    fn _nearest_idx_fallback_point(self, _target: Point) -> Tuple[Int32, Float64]:
         var best = 1.7976931348623157e308
         var best_idx: Int32 = -1
         var i = 0
@@ -754,40 +754,35 @@ struct STRtree:
         var out = List[Int32]()
         var tb = _target.copy().bounds()
         var idxs = self._query_indices_bounds(tb)
-        var j = 0
-        while j < idxs.__len__():
+        for j in range(0, idxs.__len__()):
             var i = Int(idxs[j])
             var tgt = _target.copy()
-            if predicate == "intersects" and _intersects(self.geoms[i], tgt):
+            if predicate == "intersects":
+                if _intersects(self.geoms[i], tgt):
+                    out.append(idxs[j])
+            elif predicate == "touches":
+                if _touches(self.geoms[i], tgt):
+                    out.append(idxs[j])
+            elif predicate == "overlaps":
+                if _overlaps(self.geoms[i], tgt):
+                    out.append(idxs[j])
+            elif predicate == "contains":
+                if _contains(self.geoms[i], tgt):
+                    out.append(idxs[j])
+            elif predicate == "within":
+                if _contains(tgt, self.geoms[i]):
+                    out.append(idxs[j])
+            elif predicate == "covers":
+                if _covers(self.geoms[i], tgt):
+                    out.append(idxs[j])
+            elif predicate == "covered_by":
+                if _covers(tgt, self.geoms[i]):
+                    out.append(idxs[j])
+            elif predicate == "contains_properly":
+                if _contains_properly(self.geoms[i], tgt):
+                    out.append(idxs[j])
+            else:
                 out.append(idxs[j])
-            elif predicate == "touches" and _touches(self.geoms[i], tgt):
-                out.append(idxs[j])
-            elif predicate == "overlaps" and _overlaps(self.geoms[i], tgt):
-                out.append(idxs[j])
-            elif predicate == "contains" and _contains(self.geoms[i], tgt):
-                out.append(idxs[j])
-            elif predicate == "within" and _contains(tgt, self.geoms[i]):
-                out.append(idxs[j])
-            elif predicate == "covers" and _covers(self.geoms[i], tgt):
-                out.append(idxs[j])
-            elif predicate == "covered_by" and _covers(tgt, self.geoms[i]):
-                out.append(idxs[j])
-            elif predicate == "contains_properly" and _contains_properly(
-                self.geoms[i], tgt
-            ):
-                out.append(idxs[j])
-            elif (
-                predicate != "intersects"
-                and predicate != "touches"
-                and predicate != "overlaps"
-                and predicate != "contains"
-                and predicate != "within"
-                and predicate != "covers"
-                and predicate != "covered_by"
-                and predicate != "contains_properly"
-            ):
-                out.append(idxs[j])
-            j += 1
         return out.copy()
 
     fn _knn_indices(self, _target: Geometry, k: Int32) -> List[Int32]:

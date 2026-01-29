@@ -17,7 +17,7 @@ fn approx_eq(a: Float64, b: Float64, eps: Float64 = 1e-9) -> Bool:
     return ad <= eps
 
 
-fn expect(name: String, cond: Bool) -> (Int32, Int32):
+fn expect(name: String, cond: Bool) -> Tuple[Int32, Int32]:
     if cond:
         print("PASS: " + name)
         return (1, 0)
@@ -30,7 +30,7 @@ fn mk_square(x0: Float64, y0: Float64, x1: Float64, y1: Float64) -> Polygon:
     return Polygon(LinearRing([(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)]))
 
 
-fn test_set_operations() -> (Int32, Int32):
+fn test_set_operations() -> Tuple[Int32, Int32]:
     var A = mk_square(0.0, 0.0, 2.0, 2.0)
     var B = mk_square(1.0, 1.0, 3.0, 3.0)
 
@@ -65,7 +65,7 @@ fn test_set_operations() -> (Int32, Int32):
     return (p, f)
 
 
-fn test_buffer_polygon_basic() -> (Int32, Int32):
+fn test_buffer_polygon_basic() -> Tuple[Int32, Int32]:
     var p: Int32 = 0
     var f: Int32 = 0
 
@@ -102,7 +102,7 @@ fn test_buffer_polygon_basic() -> (Int32, Int32):
     return (p, f)
 
 
-fn test_make_valid_basic() -> (Int32, Int32):
+fn test_make_valid_basic() -> Tuple[Int32, Int32]:
     var p: Int32 = 0
     var f: Int32 = 0
 
@@ -133,7 +133,7 @@ fn test_make_valid_basic() -> (Int32, Int32):
     return (p, f)
 
 
-fn test_constructive_convex_hull_simplify() -> (Int32, Int32):
+fn test_constructive_convex_hull_simplify() -> Tuple[Int32, Int32]:
     var p: Int32 = 0
     var f: Int32 = 0
 
@@ -204,7 +204,7 @@ fn test_constructive_convex_hull_simplify() -> (Int32, Int32):
     return (p, f)
 
 
-fn test_strtree_predicates() -> (Int32, Int32):
+fn test_strtree_predicates() -> Tuple[Int32, Int32]:
     var A = mk_square(0.0, 0.0, 2.0, 2.0)
     var B = mk_square(1.0, 1.0, 3.0, 3.0)
     var E = mk_square(2.0, 0.0, 4.0, 2.0)  # touches A along edge x=2
@@ -265,7 +265,7 @@ fn test_strtree_predicates() -> (Int32, Int32):
     return (p, f)
 
 
-fn test_strtree_nearest_knn() -> (Int32, Int32):
+fn test_strtree_nearest_knn() -> Tuple[Int32, Int32]:
     var A = mk_square(0.0, 0.0, 2.0, 2.0)
     var B = mk_square(5.0, 0.0, 7.0, 2.0)
     var C = mk_square(10.0, 0.0, 12.0, 2.0)
@@ -301,7 +301,7 @@ fn test_strtree_nearest_knn() -> (Int32, Int32):
     return (pcount, fcount)
 
 
-fn test_polygonize_full_basic() -> (Int32, Int32):
+fn test_polygonize_full_basic() -> Tuple[Int32, Int32]:
     # square ring
     var ring = LineString([(0.0,0.0),(2.0,0.0),(2.0,2.0),(0.0,2.0),(0.0,0.0)])
     # dangle: little tail from (2,1)->(3,1)
