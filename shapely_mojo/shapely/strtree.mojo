@@ -293,67 +293,119 @@ struct STRtree:
             i += 1
         return (minx, miny, maxx, maxy)
 
+    fn _sort_key(self, id: Int32, axis: Int32, is_node: Bool) -> Float64:
+        if is_node:
+            var b = self.tree_nodes_bbox[Int(id)]
+            if axis == 0:
+                return b[0]
+            return b[1]
+        var b2 = self.boxes[Int(id)]
+        if axis == 0:
+            return b2[0]
+        return b2[1]
+
+    fn _sort_gt(
+        self,
+        a: Int32,
+        b: Int32,
+        primary: Int32,
+        secondary: Int32,
+        is_node: Bool,
+    ) -> Bool:
+        var ap = self._sort_key(a, primary, is_node)
+        var bp = self._sort_key(b, primary, is_node)
+        if ap > bp:
+            return True
+        if ap < bp:
+            return False
+
+        var as2 = self._sort_key(a, secondary, is_node)
+        var bs2 = self._sort_key(b, secondary, is_node)
+        if as2 > bs2:
+            return True
+        if as2 < bs2:
+            return False
+
+        return a > b
+
+    fn _swap_i32(self, mut arr: List[Int32], i: Int, j: Int):
+        if i == j:
+            return
+        var t = arr[i]
+        arr[i] = arr[j]
+        arr[j] = t
+
+    fn _heapsort_range(
+        self,
+        mut idx: List[Int32],
+        start: Int,
+        end_excl: Int,
+        primary: Int32,
+        secondary: Int32,
+        is_node: Bool,
+    ):
+        var n = end_excl - start
+        if n <= 1:
+            return
+
+        fn sift_down(
+            tree: STRtree,
+            mut a: List[Int32],
+            start: Int,
+            heap_size: Int,
+            root: Int,
+            primary: Int32,
+            secondary: Int32,
+            is_node: Bool,
+        ):
+            var r = root
+            while True:
+                var child = r * 2 + 1
+                if child >= heap_size:
+                    return
+
+                var swap = r
+                if tree._sort_gt(a[start + child], a[start + swap], primary, secondary, is_node):
+                    swap = child
+                if child + 1 < heap_size and tree._sort_gt(
+                    a[start + child + 1], a[start + swap], primary, secondary, is_node
+                ):
+                    swap = child + 1
+
+                if swap == r:
+                    return
+
+                tree._swap_i32(a, start + r, start + swap)
+                r = swap
+
+        var i = n // 2 - 1
+        while i >= 0:
+            sift_down(self, idx, start, n, i, primary, secondary, is_node)
+            i -= 1
+
+        var end = n - 1
+        while end > 0:
+            self._swap_i32(idx, start, start + end)
+            sift_down(self, idx, start, end, 0, primary, secondary, is_node)
+            end -= 1
+
     fn _qsort_geom_by_minx(self, mut idx: List[Int32], lo: Int, hi: Int):
         # Insertion sort for stability and to avoid recursive quicksort (compiler crash workaround)
-        if hi <= lo:
-            return
-        var i = lo + 1
-        while i <= hi:
-            var key = idx[i]
-            var keyx = self.boxes[key][0]
-            var j = i - 1
-            while j >= lo and self.boxes[idx[j]][0] > keyx:
-                idx[j + 1] = idx[j]
-                j -= 1
-            idx[j + 1] = key
-            i += 1
+        self._heapsort_range(idx, lo, hi + 1, 0, 1, False)
 
     fn _qsort_geom_slice_by_miny(
         self, mut idx: List[Int32], start: Int, end_excl: Int
     ):
         # Insertion sort slice by miny
-        if end_excl - start <= 1:
-            return
-        var i = start + 1
-        while i < end_excl:
-            var key = idx[i]
-            var keyy = self.boxes[key][1]
-            var j = i - 1
-            while j >= start and self.boxes[idx[j]][1] > keyy:
-                idx[j + 1] = idx[j]
-                j -= 1
-            idx[j + 1] = key
-            i += 1
+        self._heapsort_range(idx, start, end_excl, 1, 0, False)
 
     fn _qsort_node_by_minx(self, mut idx: List[Int32], lo: Int, hi: Int):
-        if hi <= lo:
-            return
-        var i = lo + 1
-        while i <= hi:
-            var key = idx[i]
-            var keyx = self.tree_nodes_bbox[Int(key)][0]
-            var j = i - 1
-            while j >= lo and self.tree_nodes_bbox[Int(idx[j])][0] > keyx:
-                idx[j + 1] = idx[j]
-                j -= 1
-            idx[j + 1] = key
-            i += 1
+        self._heapsort_range(idx, lo, hi + 1, 0, 1, True)
 
     fn _qsort_node_slice_by_miny(
         self, mut idx: List[Int32], start: Int, end_excl: Int
     ):
-        if end_excl - start <= 1:
-            return
-        var i = start + 1
-        while i < end_excl:
-            var key = idx[i]
-            var keyy = self.tree_nodes_bbox[Int(key)][1]
-            var j = i - 1
-            while j >= start and self.tree_nodes_bbox[Int(idx[j])][1] > keyy:
-                idx[j + 1] = idx[j]
-                j -= 1
-            idx[j + 1] = key
-            i += 1
+        self._heapsort_range(idx, start, end_excl, 1, 0, True)
 
     fn _build_strtree(mut self, max_children: Int32):
         self.tree_nodes_bbox = List[Tuple[Float64, Float64, Float64, Float64]]()

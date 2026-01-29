@@ -10,7 +10,9 @@ from shapely.strtree import STRtree
 
 fn _now_ns() raises -> Int64:
     var time: PythonObject = Python.import_module("time")
-    return Int64(time.perf_counter_ns())
+    var t: PythonObject = time.perf_counter_ns()
+    var ns = Python.py_long_as_ssize_t(t)
+    return Int64(ns)
 
 
 fn _print_result(name: String, iters: Int, elapsed_ns: Int64):
