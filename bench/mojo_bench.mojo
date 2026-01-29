@@ -4,7 +4,7 @@ from shapely._geometry import Geometry
 from shapely.creation import box
 from shapely.constructive import buffer
 from shapely.set_operations import union, intersection, difference, symmetric_difference
-from shapely.geometry import Point
+from shapely.geometry import Point, LinearRing, Polygon
 from shapely.strtree import STRtree
 
 
@@ -21,20 +21,76 @@ fn _print_result(name: String, iters: Int, elapsed_ns: Int64):
 fn main() raises:
     # buffer
     var p = box(0.0, 0.0, 2.0, 2.0)
-    var pg = Geometry(p.copy())
     var warm = 200
     var iters = 2000
     var i = 0
     while i < warm:
-        var _ = buffer(pg.copy(), 0.25, 8)
+        var _ = buffer(p.copy(), 0.25, 8)
         i += 1
     var t0 = _now_ns()
     i = 0
     while i < iters:
-        var _ = buffer(pg.copy(), 0.25, 8)
+        var _ = buffer(p.copy(), 0.25, 8)
         i += 1
     var t1 = _now_ns()
     _print_result("buffer_box", iters, t1 - t0)
+
+    var pg = Geometry(p.copy())
+    i = 0
+    while i < warm:
+        var _ = buffer(pg.copy(), 0.25, 8)
+        i += 1
+    t0 = _now_ns()
+    i = 0
+    while i < iters:
+        var _ = buffer(pg.copy(), 0.25, 8)
+        i += 1
+    t1 = _now_ns()
+    _print_result("buffer_box_geom", iters, t1 - t0)
+
+    var coords = List[Tuple[Float64, Float64]]()
+    coords.append((0.0, 0.0))
+    coords.append((2.0, 0.0))
+    coords.append((3.0, 1.0))
+    coords.append((2.0, 2.0))
+    coords.append((0.0, 2.0))
+    coords.append((-1.0, 1.0))
+    coords.append((0.0, 0.0))
+    var conv = Polygon(LinearRing(coords))
+    i = 0
+    while i < warm:
+        var _ = buffer(conv.copy(), 0.25, 8)
+        i += 1
+    t0 = _now_ns()
+    i = 0
+    while i < iters:
+        var _ = buffer(conv.copy(), 0.25, 8)
+        i += 1
+    t1 = _now_ns()
+    _print_result("buffer_convex_poly", iters, t1 - t0)
+
+    var coords2 = List[Tuple[Float64, Float64]]()
+    coords2.append((0.0, 0.0))
+    coords2.append((3.0, 0.0))
+    coords2.append((3.0, 3.0))
+    coords2.append((2.0, 3.0))
+    coords2.append((2.0, 1.0))
+    coords2.append((1.0, 1.0))
+    coords2.append((1.0, 3.0))
+    coords2.append((0.0, 3.0))
+    coords2.append((0.0, 0.0))
+    var conc = Polygon(LinearRing(coords2))
+    i = 0
+    while i < warm:
+        var _ = buffer(conc.copy(), 0.25, 8)
+        i += 1
+    t0 = _now_ns()
+    i = 0
+    while i < iters:
+        var _ = buffer(conc.copy(), 0.25, 8)
+        i += 1
+    t1 = _now_ns()
+    _print_result("buffer_concave_poly", iters, t1 - t0)
 
     # boolean ops
     var a = Geometry(box(0.0, 0.0, 2.0, 2.0))

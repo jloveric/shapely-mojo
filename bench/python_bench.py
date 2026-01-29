@@ -46,12 +46,40 @@ def _run(name: str, warm: int, iters: int, fn) -> None:
 def main() -> None:
     shapely = _ensure_real_shapely_import()
 
-    from shapely.geometry import box, Point  # type: ignore
+    from shapely.geometry import box, Point, Polygon  # type: ignore
     from shapely.strtree import STRtree  # type: ignore
 
     # buffer
     p = box(0.0, 0.0, 2.0, 2.0)
     _run("buffer_box", warm=200, iters=2000, fn=lambda: p.buffer(0.25, quad_segs=8))
+
+    conv = Polygon(
+        [
+            (0.0, 0.0),
+            (2.0, 0.0),
+            (3.0, 1.0),
+            (2.0, 2.0),
+            (0.0, 2.0),
+            (-1.0, 1.0),
+            (0.0, 0.0),
+        ]
+    )
+    _run("buffer_convex_poly", warm=200, iters=2000, fn=lambda: conv.buffer(0.25, quad_segs=8))
+
+    conc = Polygon(
+        [
+            (0.0, 0.0),
+            (3.0, 0.0),
+            (3.0, 3.0),
+            (2.0, 3.0),
+            (2.0, 1.0),
+            (1.0, 1.0),
+            (1.0, 3.0),
+            (0.0, 3.0),
+            (0.0, 0.0),
+        ]
+    )
+    _run("buffer_concave_poly", warm=200, iters=2000, fn=lambda: conc.buffer(0.25, quad_segs=8))
 
     # boolean ops
     a = box(0.0, 0.0, 2.0, 2.0)
@@ -80,16 +108,31 @@ def main() -> None:
     qpt = Point(31.2, 9.7)
 
     _run(
-        "strtree_query_intersects",
+        "strtree_query_intersects_idx",
         warm=200,
         iters=2000,
         fn=lambda: tree.query(qpoly, predicate="intersects"),
     )
+
     _run(
-        "strtree_nearest_point",
+        "strtree_query_intersects_geom",
+        warm=200,
+        iters=2000,
+        fn=lambda: tree.geometries.take(tree.query(qpoly, predicate="intersects")),
+    )
+
+    _run(
+        "strtree_nearest_point_idx",
         warm=200,
         iters=2000,
         fn=lambda: tree.nearest(qpt),
+    )
+
+    _run(
+        "strtree_nearest_point_geom",
+        warm=200,
+        iters=2000,
+        fn=lambda: tree.geometries.take(tree.nearest(qpt)),
     )
 
     # Print version last so the RESULT lines are easy to grep.

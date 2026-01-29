@@ -10,7 +10,8 @@ from shapely.geometry import (
     MultiPolygon,
 )
 from shapely.set_operations import union, difference
-from shapely.algorithms import signed_area_coords
+from shapely.ops import polygonize_full
+from shapely.algorithms import signed_area_coords, segments_intersect
 
 
 alias CapStyle = Int32
@@ -579,9 +580,8 @@ fn _disk(cx: Float64, cy: Float64, r: Float64, quad_segs: Int32) -> Polygon:
             ring.append((cx + vx * r, cy + vy * r))
             t += 1
         bi += 1
+
     if ring.__len__() > 0:
-        # Avoid a duplicate start point right before closure (can create a zero-length
-        # segment and produce seams in bevel/mitre closed-ring buffering).
         var first = ring[0]
         var last = ring[ring.__len__() - 1]
         if first[0] == last[0] and first[1] == last[1]:
@@ -590,12 +590,246 @@ fn _disk(cx: Float64, cy: Float64, r: Float64, quad_segs: Int32) -> Polygon:
     return Polygon(LinearRing(ring))
 
 
-fn circle(cx: Float64, cy: Float64, radius: Float64, quad_segs: Int32 = 16) -> Geometry:
-    return Geometry(_disk(cx, cy, radius, quad_segs))
+fn _is_convex_closed_ring(coords: List[Tuple[Float64, Float64]]) -> Bool:
+    if coords.__len__() < 4:
+        return False
+    var first = coords[0]
+    var last = coords[coords.__len__() - 1]
+    if first[0] != last[0] or first[1] != last[1]:
+        return False
+    var area = signed_area_coords(coords)
+    if area == 0.0:
+        return False
+    var m = coords.__len__() - 1
+    var i = 0
+    while i < m:
+        var im1 = i - 1
+        if im1 < 0:
+            im1 = m - 1
+        var ip1 = i + 1
+        if ip1 == m:
+            ip1 = 0
+        var ax = coords[i][0] - coords[im1][0]
+        var ay = coords[i][1] - coords[im1][1]
+        var bx = coords[ip1][0] - coords[i][0]
+        var by = coords[ip1][1] - coords[i][1]
+        var cr = _cross(ax, ay, bx, by)
+        if area > 0.0:
+            if cr < 0.0:
+                return False
+        else:
+            if cr > 0.0:
+                return False
+        i += 1
+    return True
 
 
-fn circle(center: Point, radius: Float64, quad_segs: Int32 = 16) -> Geometry:
-    return Geometry(_disk(center.x, center.y, radius, quad_segs))
+fn _ring_has_self_intersection(coords: List[Tuple[Float64, Float64]]) -> Bool:
+    if coords.__len__() < 4:
+        return False
+    var n = coords.__len__() - 1
+    var i = 0
+    while i < n:
+        var a1 = coords[i]
+        var a2 = coords[i + 1]
+        var aminx = a1[0] if a1[0] < a2[0] else a2[0]
+        var amaxx = a2[0] if a2[0] > a1[0] else a1[0]
+        var aminy = a1[1] if a1[1] < a2[1] else a2[1]
+        var amaxy = a2[1] if a2[1] > a1[1] else a1[1]
+        var j = i + 1
+        while j < n:
+            if j == i:
+                j += 1
+                continue
+            if j == i + 1:
+                j += 1
+                continue
+            if i == 0 and j == n - 1:
+                j += 1
+                continue
+            var b1 = coords[j]
+            var b2 = coords[j + 1]
+            var bminx = b1[0] if b1[0] < b2[0] else b2[0]
+            var bmaxx = b2[0] if b2[0] > b1[0] else b1[0]
+            var bminy = b1[1] if b1[1] < b2[1] else b2[1]
+            var bmaxy = b2[1] if b2[1] > b1[1] else b1[1]
+            if amaxx < bminx or bmaxx < aminx or amaxy < bminy or bmaxy < aminy:
+                j += 1
+                continue
+            if segments_intersect(a1, a2, b1, b2):
+                return True
+            j += 1
+        i += 1
+    return False
+
+
+fn _offset_ring_outward_round(
+    coords: List[Tuple[Float64, Float64]],
+    distance: Float64,
+    quad_segs: Int32,
+) -> List[Tuple[Float64, Float64]]:
+    var out = List[Tuple[Float64, Float64]]()
+    if coords.__len__() < 4:
+        return out.copy()
+
+    var area = signed_area_coords(coords)
+    if area == 0.0:
+        return out.copy()
+    var outward_right = area > 0.0
+
+    var m = coords.__len__() - 1
+
+    var txs = List[Float64]()
+    var tys = List[Float64]()
+    var nxs = List[Float64]()
+    var nys = List[Float64]()
+    var i = 0
+    while i < m:
+        var j = i + 1
+        if j == m:
+            j = 0
+        var t = _unit_tangent(coords[i][0], coords[i][1], coords[j][0], coords[j][1])
+        txs.append(t[0])
+        tys.append(t[1])
+        var nn = _unit_normal_left(t[0], t[1])
+        nxs.append(nn[0])
+        nys.append(nn[1])
+        i += 1
+
+    var k = 0
+    while k < m:
+        var px = coords[k][0]
+        var py = coords[k][1]
+
+        var prev = k - 1
+        if prev < 0:
+            prev = m - 1
+
+        var n0x = nxs[prev]
+        var n0y = nys[prev]
+        var n1x = nxs[k]
+        var n1y = nys[k]
+        var t0x = txs[prev]
+        var t0y = tys[prev]
+        var t1x = txs[k]
+        var t1y = tys[k]
+
+        var o0x = px + n0x * distance
+        var o0y = py + n0y * distance
+        var o1x = px + n1x * distance
+        var o1y = py + n1y * distance
+        var sx = n0x
+        var sy = n0y
+        var ex = n1x
+        var ey = n1y
+        if outward_right:
+            o0x = px - n0x * distance
+            o0y = py - n0y * distance
+            o1x = px - n1x * distance
+            o1y = py - n1y * distance
+            sx = -n0x
+            sy = -n0y
+            ex = -n1x
+            ey = -n1y
+
+        var li = _line_intersection_tu(o0x, o0y, t0x, t0y, o1x, o1y, t1x, t1y)
+        var ipt = li[0]
+        var lok = li[3]
+
+        var cr = _cross(t0x, t0y, t1x, t1y)
+        var want_arc = False
+        if outward_right:
+            if cr > 0.0:
+                want_arc = True
+        else:
+            if cr < 0.0:
+                want_arc = True
+
+        if want_arc:
+            _append_arc_join(out, px, py, distance, quad_segs, sx, sy, ex, ey)
+        else:
+            if lok:
+                out.append(ipt)
+            else:
+                out.append((o0x, o0y))
+                out.append((o1x, o1y))
+
+        k += 1
+
+    _close_ring(out)
+    if signed_area_coords(out) < 0.0:
+        out = _reverse_coords(out)
+    return out.copy()
+
+
+fn _is_axis_aligned_box_shell(
+    coords: List[Tuple[Float64, Float64]],
+    xmin: Float64,
+    ymin: Float64,
+    xmax: Float64,
+    ymax: Float64,
+) -> Bool:
+    if coords.__len__() != 5:
+        return False
+    var c0 = coords[0]
+    var c1 = coords[1]
+    var c2 = coords[2]
+    var c3 = coords[3]
+    var c4 = coords[4]
+    if c0[0] != c4[0] or c0[1] != c4[1]:
+        return False
+    if (
+        c0[0] == xmax
+        and c0[1] == ymin
+        and c1[0] == xmax
+        and c1[1] == ymax
+        and c2[0] == xmin
+        and c2[1] == ymax
+        and c3[0] == xmin
+        and c3[1] == ymin
+    ):
+        return True
+    if (
+        c0[0] == xmin
+        and c0[1] == ymin
+        and c1[0] == xmin
+        and c1[1] == ymax
+        and c2[0] == xmax
+        and c2[1] == ymax
+        and c3[0] == xmax
+        and c3[1] == ymin
+    ):
+        return True
+    return False
+
+
+fn _rounded_rect_polygon(
+    xmin: Float64,
+    ymin: Float64,
+    xmax: Float64,
+    ymax: Float64,
+    r: Float64,
+    quad_segs: Int32,
+) -> Polygon:
+    if r <= 0.0:
+        return Polygon(LinearRing([(xmax, ymin), (xmax, ymax), (xmin, ymax), (xmin, ymin), (xmax, ymin)]))
+
+    var ring = List[Tuple[Float64, Float64]]()
+    _append_arc(ring, xmax, ymax, r, quad_segs, 1.0, 0.0, 0.0, 1.0, True, True)
+    ring.append((xmin, ymax + r))
+    _append_arc(ring, xmin, ymax, r, quad_segs, 0.0, 1.0, -1.0, 0.0, True, True)
+    ring.append((xmin - r, ymin))
+    _append_arc(ring, xmin, ymin, r, quad_segs, -1.0, 0.0, 0.0, -1.0, True, True)
+    ring.append((xmax, ymin - r))
+    _append_arc(ring, xmax, ymin, r, quad_segs, 0.0, -1.0, 1.0, 0.0, True, True)
+    ring.append((xmax + r, ymax))
+
+    if ring.__len__() > 0:
+        var first = ring[0]
+        var last = ring[ring.__len__() - 1]
+        if first[0] != last[0] or first[1] != last[1]:
+            ring.append(first)
+    return Polygon(LinearRing(ring))
 
 
 fn buffer(geom: Geometry, _distance: Float64, _quad_segs: Int32 = 16) -> Geometry:
@@ -1073,6 +1307,64 @@ fn buffer(
         return Geometry(p.copy())
     if p.is_empty():
         return Geometry(_empty_polygon())
+
+    if join_style == JOIN_ROUND and p.holes.__len__() == 0:
+        var b = p.bounds()
+        if _is_axis_aligned_box_shell(p.shell.coords, b[0], b[1], b[2], b[3]):
+            return Geometry(_rounded_rect_polygon(b[0], b[1], b[2], b[3], distance, quad_segs))
+        if _is_convex_closed_ring(p.shell.coords):
+            var ring = _offset_ring_outward_round(p.shell.coords, distance, quad_segs)
+            if ring.__len__() > 0:
+                return Geometry(Polygon(LinearRing(ring)))
+        var ring2 = _offset_ring_outward_round(p.shell.coords, distance, quad_segs)
+        if ring2.__len__() >= 4:
+            var ring3 = List[Tuple[Float64, Float64]]()
+            var k2 = 0
+            while k2 < ring2.__len__():
+                if ring3.__len__() == 0:
+                    ring3.append(ring2[k2])
+                else:
+                    var prev = ring3[ring3.__len__() - 1]
+                    var cur = ring2[k2]
+                    if prev[0] != cur[0] or prev[1] != cur[1]:
+                        ring3.append(cur)
+                k2 += 1
+            if ring3.__len__() >= 2:
+                var f = ring3[0]
+                var l = ring3[ring3.__len__() - 1]
+                if f[0] != l[0] or f[1] != l[1]:
+                    ring3.append(f)
+            if ring3.__len__() >= 4 and not _ring_has_self_intersection(ring3):
+                return Geometry(Polygon(LinearRing(ring3)))
+            var segs = List[LineString]()
+            var i2 = 0
+            while i2 < ring2.__len__() - 1:
+                var pts = List[Tuple[Float64, Float64]]()
+                pts.append(ring2[i2])
+                pts.append(ring2[i2 + 1])
+                segs.append(LineString(pts))
+                i2 += 1
+            if segs.__len__() > 0:
+                var mls = MultiLineString(segs)
+                var res = polygonize_full(Geometry(mls.copy()))
+                ref polys = res[0]
+                var best_area = -1.0
+                var best = _empty_polygon()
+                for g in polys.geoms:
+                    if g.is_polygon():
+                        var pp = g.as_polygon()
+                        var a = pp.area()
+                        if a > best_area:
+                            best_area = a
+                            best = pp.copy()
+                    elif g.is_multipolygon():
+                        for pp in g.as_multipolygon().polys:
+                            var a = pp.area()
+                            if a > best_area:
+                                best_area = a
+                                best = pp.copy()
+                if best_area > 0.0:
+                    return Geometry(best.copy())
 
     # Best-effort polygon buffer using boundary buffering.
     # Expand exterior and shrink/fill holes by unioning with buffered boundary rings.
