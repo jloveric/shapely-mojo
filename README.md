@@ -12,24 +12,42 @@
  
  Create / sync the virtualenv with dependencies:
  
- ```bash
- uv sync
- ```
+```bash
+uv sync
+```
  
- ## Run the Mojo tests
+## Run the Mojo tests
  
- ```bash
- uv run mojo run -I shapely_mojo shapely_mojo/tests/run_tests.mojo
- ```
+```bash
+uv run mojo run -I shapely_mojo shapely_mojo/tests/run_tests.mojo
+```
  
- ## Run the buffering + matplotlib example
+## Run + compare benchmarks
+
+Run both the Mojo and Python benchmarks, write the results to JSON, and print a per-benchmark speedup table:
+
+```bash
+uv run python bench/compare_benchmarks.py
+```
+
+This writes:
+
+- `bench/results/mojo_results.json`
+- `bench/results/python_results.json`
+
+The printed `speedup(py/mojo)` value is `python_seconds / mojo_seconds`:
+
+- values **> 1.0** mean Mojo is faster
+- values **< 1.0** mean Python Shapely is faster
+
+## Run the buffering + matplotlib example
  
- This example:
+This example:
  
- - creates a couple of `LineString`s
- - buffers them using **Mojo Shapely** (`shapely.constructive.buffer`)
- - plots the input lines + buffer result using `matplotlib` via Mojo Python-interop
- - writes the image to `outputs/line_buffer.png`
+- creates a couple of `LineString`s
+- buffers them using **Mojo Shapely** (`shapely.constructive.buffer`)
+- plots the input lines + buffer result using `matplotlib` via Mojo Python-interop
+- writes the image to `outputs/line_buffer.png`
  
 ```bash
 uv run mojo run -I shapely_mojo examples/plot_line_buffer.mojo
