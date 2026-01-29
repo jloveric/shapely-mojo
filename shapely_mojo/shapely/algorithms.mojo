@@ -125,6 +125,23 @@ fn any_segment_intersection(a: LineString, b: LineString) -> Bool:
     return False
 
 
+fn any_segment_intersection_coords(
+    a_coords: List[Tuple[Float64, Float64]],
+    b_coords: List[Tuple[Float64, Float64]],
+) -> Bool:
+    if a_coords.__len__() < 2 or b_coords.__len__() < 2:
+        return False
+    for i in range(0, a_coords.__len__() - 1):
+        var a1 = a_coords[i]
+        var a2 = a_coords[i + 1]
+        for j in range(0, b_coords.__len__() - 1):
+            var b1 = b_coords[j]
+            var b2 = b_coords[j + 1]
+            if segments_intersect(a1, a2, b1, b2):
+                return True
+    return False
+
+
 fn signed_area_coords(coords: List[Tuple[Float64, Float64]]) -> Float64:
     if coords.__len__() < 2:
         return 0.0

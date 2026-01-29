@@ -1,6 +1,11 @@
 from shapely._geometry import Geometry
 from shapely.geometry import Point, LineString, LinearRing, Polygon, MultiPolygon
-from shapely.algorithms import point_on_linestring, point_in_polygon, any_segment_intersection
+from shapely.algorithms import (
+    point_on_linestring,
+    point_in_polygon,
+    any_segment_intersection,
+    any_segment_intersection_coords,
+)
 from shapely.set_operations import intersection as _poly_intersection
 from shapely.measurement import area as _area
 
@@ -111,10 +116,13 @@ fn intersects(a: Polygon, b: LineString) -> Bool:
 
 
 fn intersects(a: Polygon, b: Polygon) -> Bool:
+    var ab = a.bounds()
+    var bb = b.bounds()
+    if ab[2] < bb[0] or bb[2] < ab[0] or ab[3] < bb[1] or bb[3] < ab[1]:
+        return False
+
     # quick tests: any edge intersection
-    var a_shell_ls = LineString(a.shell.coords)
-    var b_shell_ls = LineString(b.shell.coords)
-    if any_segment_intersection(a_shell_ls, b_shell_ls):
+    if any_segment_intersection_coords(a.shell.coords, b.shell.coords):
         return True
     # boundary-touch / colinear-overlap cases: check if any vertex lies on the other boundary
     # (do not count strict containment as intersects here)
