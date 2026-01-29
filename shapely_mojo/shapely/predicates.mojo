@@ -121,19 +121,31 @@ fn intersects(a: Polygon, b: Polygon) -> Bool:
     if ab[2] < bb[0] or bb[2] < ab[0] or ab[3] < bb[1] or bb[3] < ab[1]:
         return False
 
-    # quick tests: any edge intersection
     if any_segment_intersection_coords(a.shell.coords, b.shell.coords):
         return True
-    # boundary-touch / colinear-overlap cases: check if any vertex lies on the other boundary
-    # (do not count strict containment as intersects here)
-    for c in a.shell.coords:
-        var p = Point(c[0], c[1])
-        if point_in_polygon(p, b) == 2:
+
+    for ah in a.holes:
+        if any_segment_intersection_coords(ah.coords, b.shell.coords):
             return True
-    for c in b.shell.coords:
-        var p2 = Point(c[0], c[1])
-        if point_in_polygon(p2, a) == 2:
+        for bh in b.holes:
+            if any_segment_intersection_coords(ah.coords, bh.coords):
+                return True
+
+    for bh2 in b.holes:
+        if any_segment_intersection_coords(a.shell.coords, bh2.coords):
             return True
+
+    if a.shell.coords.__len__() > 0:
+        var c0 = a.shell.coords[0]
+        var p0 = Point(c0[0], c0[1])
+        if point_in_polygon(p0, b) != 0:
+            return True
+    if b.shell.coords.__len__() > 0:
+        var c1 = b.shell.coords[0]
+        var p1 = Point(c1[0], c1[1])
+        if point_in_polygon(p1, a) != 0:
+            return True
+
     return False
 
 

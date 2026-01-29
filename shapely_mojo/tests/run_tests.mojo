@@ -223,7 +223,7 @@ fn test_strtree_predicates() -> Tuple[Int32, Int32]:
     var f: Int32 = 0
     # intersects with A -> A and B and E (touching counts as intersects in Shapely)
     var q_inter = tree.query(A, "intersects")
-    var s1 = expect("STRtree intersects count", q_inter.__len__() == 3)
+    var s1 = expect("STRtree intersects count", q_inter.__len__() == 4)
     p += s1[0]; f += s1[1]
 
     # overlaps with B -> only A overlaps B
