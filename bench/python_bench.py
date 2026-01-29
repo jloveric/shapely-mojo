@@ -81,6 +81,15 @@ def main() -> None:
     )
     _run("buffer_concave_poly", warm=200, iters=2000, fn=lambda: conc.buffer(0.25, quad_segs=8))
 
+    poly_holes = Polygon(
+        [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0), (0.0, 0.0)],
+        holes=[
+            [(2.0, 2.0), (4.0, 2.0), (4.0, 4.0), (2.0, 4.0), (2.0, 2.0)],
+            [(6.0, 2.0), (8.0, 2.0), (8.0, 4.0), (6.0, 4.0), (6.0, 2.0)],
+        ],
+    )
+    _run("buffer_poly_holes", warm=200, iters=2000, fn=lambda: poly_holes.buffer(0.25, quad_segs=8))
+
     # boolean ops
     a = box(0.0, 0.0, 2.0, 2.0)
     b = box(1.0, 0.8, 3.0, 2.6)

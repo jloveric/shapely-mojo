@@ -94,6 +94,40 @@ fn main() raises:
     t1 = _now_ns()
     _print_result("buffer_concave_poly", iters, t1 - t0)
 
+    var shell = List[Tuple[Float64, Float64]]()
+    shell.append((0.0, 0.0))
+    shell.append((10.0, 0.0))
+    shell.append((10.0, 10.0))
+    shell.append((0.0, 10.0))
+    shell.append((0.0, 0.0))
+    var hole1 = List[Tuple[Float64, Float64]]()
+    hole1.append((2.0, 2.0))
+    hole1.append((4.0, 2.0))
+    hole1.append((4.0, 4.0))
+    hole1.append((2.0, 4.0))
+    hole1.append((2.0, 2.0))
+    var hole2 = List[Tuple[Float64, Float64]]()
+    hole2.append((6.0, 2.0))
+    hole2.append((8.0, 2.0))
+    hole2.append((8.0, 4.0))
+    hole2.append((6.0, 4.0))
+    hole2.append((6.0, 2.0))
+    var holes = List[LinearRing]()
+    holes.append(LinearRing(hole1))
+    holes.append(LinearRing(hole2))
+    var poly_holes = Polygon(LinearRing(shell), holes)
+    i = 0
+    while i < warm:
+        var _ = buffer(poly_holes.copy(), 0.25, 8)
+        i += 1
+    t0 = _now_ns()
+    i = 0
+    while i < iters:
+        var _ = buffer(poly_holes.copy(), 0.25, 8)
+        i += 1
+    t1 = _now_ns()
+    _print_result("buffer_poly_holes", iters, t1 - t0)
+
     # boolean ops
     var a = Geometry(box(0.0, 0.0, 2.0, 2.0))
     var b = Geometry(box(1.0, 0.8, 3.0, 2.6))
