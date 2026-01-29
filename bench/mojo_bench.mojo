@@ -8,6 +8,17 @@ from shapely.geometry import Point, LinearRing, Polygon
 from shapely.strtree import STRtree
 
 
+fn _mk_skew_poly(x0: Float64, y0: Float64, w: Float64, h: Float64) -> Polygon:
+    var sx = 0.35 * w
+    var pts = List[Tuple[Float64, Float64]]()
+    pts.append((x0, y0))
+    pts.append((x0 + w, y0 + 0.2 * h))
+    pts.append((x0 + w + sx, y0 + h))
+    pts.append((x0 + sx, y0 + 0.8 * h))
+    pts.append((x0, y0))
+    return Polygon(LinearRing(pts))
+
+
 fn _now_ns() raises -> Int64:
     var time: PythonObject = Python.import_module("time")
     var t: PythonObject = time.perf_counter_ns()
@@ -93,6 +104,19 @@ fn main() raises:
         i += 1
     t1 = _now_ns()
     _print_result("buffer_concave_poly", iters, t1 - t0)
+
+    var skew = _mk_skew_poly(0.0, 0.0, 3.0, 3.0)
+    i = 0
+    while i < warm:
+        var _ = buffer(skew.copy(), 0.25, 8)
+        i += 1
+    t0 = _now_ns()
+    i = 0
+    while i < iters:
+        var _ = buffer(skew.copy(), 0.25, 8)
+        i += 1
+    t1 = _now_ns()
+    _print_result("buffer_skew_poly", iters, t1 - t0)
 
     var shell = List[Tuple[Float64, Float64]]()
     shell.append((0.0, 0.0))
@@ -249,3 +273,41 @@ fn main() raises:
         i += 1
     t1 = _now_ns()
     _print_result("strtree_nearest_point_geom", iters, t1 - t0)
+
+    var skew_items = List[Geometry]()
+    x = 0
+    while x < 40:
+        var y = 0
+        while y < 25:
+            var xmin2 = Float64(x) * 1.5
+            var ymin2 = Float64(y) * 1.5
+            skew_items.append(Geometry(_mk_skew_poly(xmin2, ymin2, 1.0, 1.0)))
+            y += 1
+        x += 1
+
+    var skew_tree = STRtree(skew_items)
+    var skew_qpoly = Geometry(_mk_skew_poly(10.0, 10.0, 20.0, 15.0))
+
+    i = 0
+    while i < warm:
+        var _ = skew_tree.query_items(skew_qpoly.copy(), "intersects")
+        i += 1
+    t0 = _now_ns()
+    i = 0
+    while i < iters:
+        var _ = skew_tree.query_items(skew_qpoly.copy(), "intersects")
+        i += 1
+    t1 = _now_ns()
+    _print_result("strtree_query_intersects_skew_idx", iters, t1 - t0)
+
+    i = 0
+    while i < warm:
+        var _ = skew_tree.query(skew_qpoly.copy(), "intersects")
+        i += 1
+    t0 = _now_ns()
+    i = 0
+    while i < iters:
+        var _ = skew_tree.query(skew_qpoly.copy(), "intersects")
+        i += 1
+    t1 = _now_ns()
+    _print_result("strtree_query_intersects_skew_geom", iters, t1 - t0)

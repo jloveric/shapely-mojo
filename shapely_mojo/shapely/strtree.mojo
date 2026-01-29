@@ -532,7 +532,7 @@ struct STRtree:
         while i < idxs.__len__():
             out.append(self.geoms[Int(idxs[i])].copy())
             i += 1
-        return out.copy()
+        return out^
 
     fn query(self, _target: Polygon) -> List[Geometry]:
         return self.query(Geometry(_target.copy()))
@@ -544,7 +544,7 @@ struct STRtree:
         while i < idxs.__len__():
             out.append(self.geoms[Int(idxs[i])].copy())
             i += 1
-        return out.copy()
+        return out^
 
     fn query(self, _target: Polygon, predicate: String) -> List[Geometry]:
         return self.query(Geometry(_target.copy()), predicate)
@@ -568,13 +568,13 @@ struct STRtree:
     fn query_knn(self, _target: Geometry, k: Int32) -> List[Geometry]:
         var out = List[Geometry]()
         if self.boxes.__len__() == 0 or k <= 0:
-            return out.copy()
+            return out^
         var sel = self._knn_indices(_target, k)
         var r = 0
         while r < sel.__len__():
             out.append(self.geoms[Int(sel[r])].copy())
             r += 1
-        return out.copy()
+        return out^
 
     fn _nearest_idx(self, _target: Geometry) -> Tuple[Int32, Float64]:
         if self.boxes.__len__() == 0 or self.tree_root == -1:
@@ -762,14 +762,20 @@ struct STRtree:
     ) -> List[Int32]:
         var out = List[Int32]()
         if self.tree_root == -1:
-            return out.copy()
+            return out^
+
+        var tb0 = tb[0]
+        var tb1 = tb[1]
+        var tb2 = tb[2]
+        var tb3 = tb[3]
 
         var stack = List[Int32]()
         stack.append(self.tree_root)
         while stack.__len__() > 0:
             var nid = stack.pop()
             var nidx = Int(nid)
-            if not self._env_intersects(self.tree_nodes_bbox[nidx], tb):
+            var nb = self.tree_nodes_bbox[nidx]
+            if nb[2] < tb0 or tb2 < nb[0] or nb[3] < tb1 or tb3 < nb[1]:
                 continue
             if self.tree_nodes_is_leaf[nidx]:
                 var start = Int(self.tree_nodes_child_start[nidx])
@@ -777,7 +783,8 @@ struct STRtree:
                 var j = 0
                 while j < cnt:
                     var gid = self.tree_children[start + j]
-                    if self._env_intersects(self.boxes[Int(gid)], tb):
+                    var b = self.boxes[Int(gid)]
+                    if not (b[2] < tb0 or tb2 < b[0] or b[3] < tb1 or tb3 < b[1]):
                         out.append(gid)
                     j += 1
             else:
@@ -786,14 +793,15 @@ struct STRtree:
                 var j2 = 0
                 while j2 < cnt2:
                     var cid = self.tree_children[start2 + j2]
-                    if self._env_intersects(self.tree_nodes_bbox[Int(cid)], tb):
+                    var cb = self.tree_nodes_bbox[Int(cid)]
+                    if not (cb[2] < tb0 or tb2 < cb[0] or cb[3] < tb1 or tb3 < cb[1]):
                         stack.append(cid)
                     j2 += 1
 
-        return out.copy()
+        return out^
 
     fn _query_indices(self, _target: Geometry) -> List[Int32]:
-        var tb = _target.copy().bounds()
+        var tb = _target.bounds()
         return self._query_indices_bounds(tb)
 
     fn query_items(self, _target: Geometry) -> List[Int32]:
@@ -804,38 +812,92 @@ struct STRtree:
 
     fn _query_indices(self, _target: Geometry, predicate: String) -> List[Int32]:
         var out = List[Int32]()
-        var tb = _target.copy().bounds()
-        var idxs = self._query_indices_bounds(tb)
-        for j in range(0, idxs.__len__()):
-            var i = Int(idxs[j])
-            var tgt = _target.copy()
-            if predicate == "intersects":
-                if _intersects(self.geoms[i], tgt):
-                    out.append(idxs[j])
-            elif predicate == "touches":
-                if _touches(self.geoms[i], tgt):
-                    out.append(idxs[j])
-            elif predicate == "overlaps":
-                if _overlaps(self.geoms[i], tgt):
-                    out.append(idxs[j])
-            elif predicate == "contains":
-                if _contains(self.geoms[i], tgt):
-                    out.append(idxs[j])
-            elif predicate == "within":
-                if _contains(tgt, self.geoms[i]):
-                    out.append(idxs[j])
-            elif predicate == "covers":
-                if _covers(self.geoms[i], tgt):
-                    out.append(idxs[j])
-            elif predicate == "covered_by":
-                if _covers(tgt, self.geoms[i]):
-                    out.append(idxs[j])
-            elif predicate == "contains_properly":
-                if _contains_properly(self.geoms[i], tgt):
-                    out.append(idxs[j])
+        if self.tree_root == -1:
+            return out^
+
+        var tb = _target.bounds()
+        var tb0 = tb[0]
+        var tb1 = tb[1]
+        var tb2 = tb[2]
+        var tb3 = tb[3]
+        var tgt = _target.copy()
+
+        var code: Int32
+        if predicate == "intersects":
+            code = 1
+        elif predicate == "touches":
+            code = 2
+        elif predicate == "overlaps":
+            code = 3
+        elif predicate == "contains":
+            code = 4
+        elif predicate == "within":
+            code = 5
+        elif predicate == "covers":
+            code = 6
+        elif predicate == "covered_by":
+            code = 7
+        elif predicate == "contains_properly":
+            code = 8
+        else:
+            code = 0
+
+        var stack = List[Int32]()
+        stack.append(self.tree_root)
+        while stack.__len__() > 0:
+            var nid = stack.pop()
+            var nidx = Int(nid)
+            var nb = self.tree_nodes_bbox[nidx]
+            if nb[2] < tb0 or tb2 < nb[0] or nb[3] < tb1 or tb3 < nb[1]:
+                continue
+            if self.tree_nodes_is_leaf[nidx]:
+                var start = Int(self.tree_nodes_child_start[nidx])
+                var cnt = Int(self.tree_nodes_child_count[nidx])
+                var j = 0
+                while j < cnt:
+                    var gid = self.tree_children[start + j]
+                    var gi = Int(gid)
+                    var b = self.boxes[gi]
+                    if not (b[2] < tb0 or tb2 < b[0] or b[3] < tb1 or tb3 < b[1]):
+                        if code == 0:
+                            out.append(gid)
+                        elif code == 1:
+                            if _intersects(self.geoms[gi], tgt):
+                                out.append(gid)
+                        elif code == 2:
+                            if _touches(self.geoms[gi], tgt):
+                                out.append(gid)
+                        elif code == 3:
+                            if _overlaps(self.geoms[gi], tgt):
+                                out.append(gid)
+                        elif code == 4:
+                            if _contains(self.geoms[gi], tgt):
+                                out.append(gid)
+                        elif code == 5:
+                            if _contains(tgt, self.geoms[gi]):
+                                out.append(gid)
+                        elif code == 6:
+                            if _covers(self.geoms[gi], tgt):
+                                out.append(gid)
+                        elif code == 7:
+                            if _covers(tgt, self.geoms[gi]):
+                                out.append(gid)
+                        else:
+                            if _contains_properly(self.geoms[gi], tgt):
+                                out.append(gid)
+                    j += 1
             else:
-                out.append(idxs[j])
-        return out.copy()
+                var start2 = Int(self.tree_nodes_child_start[nidx])
+                var cnt2 = Int(self.tree_nodes_child_count[nidx])
+                var j2 = 0
+                while j2 < cnt2:
+                    var cid = self.tree_children[start2 + j2]
+                    var cb = self.tree_nodes_bbox[Int(cid)]
+                    if not (cb[2] < tb0 or tb2 < cb[0] or cb[3] < tb1 or tb3 < cb[1]):
+                        stack.append(cid)
+                    j2 += 1
+
+        return out^
 
     fn _knn_indices(self, _target: Geometry, k: Int32) -> List[Int32]:
         var out = List[Int32]()

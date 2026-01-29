@@ -49,6 +49,18 @@ def main() -> None:
     from shapely.geometry import box, Point, Polygon  # type: ignore
     from shapely.strtree import STRtree  # type: ignore
 
+    def mk_skew_poly(x0: float, y0: float, w: float, h: float) -> Polygon:
+        sx = 0.35 * w
+        return Polygon(
+            [
+                (x0, y0),
+                (x0 + w, y0 + 0.2 * h),
+                (x0 + w + sx, y0 + h),
+                (x0 + sx, y0 + 0.8 * h),
+                (x0, y0),
+            ]
+        )
+
     # buffer
     p = box(0.0, 0.0, 2.0, 2.0)
     _run("buffer_box", warm=200, iters=2000, fn=lambda: p.buffer(0.25, quad_segs=8))
@@ -80,6 +92,9 @@ def main() -> None:
         ]
     )
     _run("buffer_concave_poly", warm=200, iters=2000, fn=lambda: conc.buffer(0.25, quad_segs=8))
+
+    skew = mk_skew_poly(0.0, 0.0, 3.0, 3.0)
+    _run("buffer_skew_poly", warm=200, iters=2000, fn=lambda: skew.buffer(0.25, quad_segs=8))
 
     poly_holes = Polygon(
         [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0), (0.0, 0.0)],
@@ -142,6 +157,32 @@ def main() -> None:
         warm=200,
         iters=2000,
         fn=lambda: tree.geometries.take(tree.nearest(qpt)),
+    )
+
+    skew_items = []
+    for x in range(40):
+        for y in range(25):
+            xmin = float(x) * 1.5
+            ymin = float(y) * 1.5
+            skew_items.append(mk_skew_poly(xmin, ymin, 1.0, 1.0))
+
+    skew_tree = STRtree(skew_items)
+    skew_qpoly = mk_skew_poly(10.0, 10.0, 20.0, 15.0)
+
+    _run(
+        "strtree_query_intersects_skew_idx",
+        warm=200,
+        iters=2000,
+        fn=lambda: skew_tree.query(skew_qpoly, predicate="intersects"),
+    )
+
+    _run(
+        "strtree_query_intersects_skew_geom",
+        warm=200,
+        iters=2000,
+        fn=lambda: skew_tree.geometries.take(
+            skew_tree.query(skew_qpoly, predicate="intersects")
+        ),
     )
 
     # Print version last so the RESULT lines are easy to grep.
