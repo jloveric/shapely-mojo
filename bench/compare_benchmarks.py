@@ -107,7 +107,7 @@ def main() -> int:
     out_dir = root / "bench" / "results"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    mojo_out = _run_cmd(["uv", "run", "mojo", "run", "-I", "shapely_mojo", "bench/mojo_bench.mojo"], cwd=root)
+    mojo_out = _run_cmd(["uv", "run", "mojo", "run", "-I", ".", "bench/mojo_bench.mojo"], cwd=root)
     mojo_results = _parse_results(mojo_out)
 
     py_out = _run_cmd(["uv", "run", "python", "bench/python_bench.py"], cwd=root)

@@ -168,7 +168,11 @@ fn main() raises:
     for g in knn:
         _plot_geom(plt, g, "tab:green", "tab:green", lw=2, alpha=0.8)
     _plot_geom(plt, nearest, "tab:red", "tab:red", lw=3, alpha=0.95)
-    ax2.scatter([query_pt.x], [query_pt.y], color="black", s=50)
+    var qxs = Python.list()
+    qxs.append(query_pt.x)
+    var qys = Python.list()
+    qys.append(query_pt.y)
+    ax2.scatter(qxs, qys, color="black", s=50)
     ax2.set_aspect("equal", adjustable="box")
     ax2.set_xlim(minx - pad, maxx + pad)
     ax2.set_ylim(miny - pad, maxy + pad)

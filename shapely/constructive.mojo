@@ -58,6 +58,11 @@ fn _circle_polygon(cx: Float64, cy: Float64, r: Float64) -> Polygon:
     return Polygon(LinearRing(pts))
 
 
+fn circle(cx: Float64, cy: Float64, r: Float64, quad_segs: Int32 = 8) -> Geometry:
+    _ = quad_segs
+    return Geometry(_circle_polygon(cx, cy, r))
+
+
 fn _unit_tangent(ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Tuple[Float64, Float64]:
     var dx = bx - ax
     var dy = by - ay

@@ -19,7 +19,7 @@ uv sync
 ## Run the Mojo tests
  
 ```bash
-uv run mojo run -I shapely_mojo shapely_mojo/tests/run_tests.mojo
+uv run mojo run -I . tests/run_tests.mojo
 ```
  
 ## Run + compare benchmarks
@@ -50,7 +50,7 @@ This example:
 - writes the image to `outputs/line_buffer.png`
  
 ```bash
-uv run mojo run -I shapely_mojo examples/plot_line_buffer.mojo
+uv run mojo run -I . examples/plot_line_buffer.mojo
 ```
  
 The output directory is created automatically.
@@ -68,7 +68,7 @@ Polygon buffering with holes (shows `buffer` for `join_style` = round/bevel/mitr
 Regenerate:
 
 ```bash
-uv run mojo run -I shapely_mojo examples/plot_polygon_buffer_with_holes.mojo
+uv run mojo run -I . examples/plot_polygon_buffer_with_holes.mojo
 ```
 
 Tic-tac-toe board linework buffered + unioned into a single footprint (prints `area()` and `length()` and saves a plot):
@@ -78,7 +78,7 @@ Tic-tac-toe board linework buffered + unioned into a single footprint (prints `a
 Regenerate:
 
 ```bash
-uv run mojo run -I shapely_mojo examples/plot_tictactoe_buffer_metrics.mojo
+uv run mojo run -I . examples/plot_tictactoe_buffer_metrics.mojo
 ```
 
 Boolean operations (intersection / union / difference / symmetric difference) between two polygons:
@@ -88,7 +88,7 @@ Boolean operations (intersection / union / difference / symmetric difference) be
 Regenerate:
 
 ```bash
-uv run mojo run -I shapely_mojo examples/plot_boolean_operations.mojo
+uv run mojo run -I . examples/plot_boolean_operations.mojo
 ```
 
 STRtree spatial index example (predicate query + nearest / kNN):
@@ -98,14 +98,14 @@ STRtree spatial index example (predicate query + nearest / kNN):
 Regenerate:
 
 ```bash
-uv run mojo run -I shapely_mojo examples/plot_strtree_queries.mojo
+uv run mojo run -I . examples/plot_strtree_queries.mojo
 ```
 
 ## Project layout
  
-- `shapely_mojo/shapely/`
+- `shapely/`
   - Mojo implementation of geometry types and operations
-- `shapely_mojo/tests/run_tests.mojo`
+- `tests/run_tests.mojo`
   - Small Mojo test runner
 - `examples/`
   - Runnable examples (Mojo)
