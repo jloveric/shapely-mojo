@@ -3,39 +3,39 @@ from shapely.geometry import Point, LineString, Polygon, MultiLineString, MultiP
 from shapely.algorithms import point_in_polygon, any_segment_intersection
 
 
-fn distance(ref a: Point, ref b: Geometry) -> Float64:
+def distance(ref a: Point, ref b: Geometry) -> Float64:
     return distance(Geometry(a.copy()), b)
 
 
-fn distance(ref a: Geometry, ref b: Point) -> Float64:
+def distance(ref a: Geometry, ref b: Point) -> Float64:
     return distance(a, Geometry(b.copy()))
 
 
-fn distance(ref a: LineString, ref b: Geometry) -> Float64:
+def distance(ref a: LineString, ref b: Geometry) -> Float64:
     return distance(Geometry(a.copy()), b)
 
 
-fn distance(ref a: Geometry, ref b: LineString) -> Float64:
+def distance(ref a: Geometry, ref b: LineString) -> Float64:
     return distance(a, Geometry(b.copy()))
 
 
-fn distance(ref a: Polygon, ref b: Geometry) -> Float64:
+def distance(ref a: Polygon, ref b: Geometry) -> Float64:
     return distance(Geometry(a.copy()), b)
 
 
-fn distance(ref a: Geometry, ref b: Polygon) -> Float64:
+def distance(ref a: Geometry, ref b: Polygon) -> Float64:
     return distance(a, Geometry(b.copy()))
 
 
-fn distance(ref a: Polygon, ref b: Point) -> Float64:
+def distance(ref a: Polygon, ref b: Point) -> Float64:
     return distance(b.copy(), a.copy())
 
 
-fn distance(ref a: Point, ref b: Polygon) -> Float64:
+def distance(ref a: Point, ref b: Polygon) -> Float64:
     return distance(a.copy(), b.copy())
 
 
-fn length(g: Geometry) -> Float64:
+def length(g: Geometry) -> Float64:
     if g.is_linestring():
         return length(g.as_linestring())
     if g.is_multilinestring():
@@ -43,7 +43,7 @@ fn length(g: Geometry) -> Float64:
     return 0.0
 
 
-fn area(g: Geometry) -> Float64:
+def area(g: Geometry) -> Float64:
     if g.is_polygon():
         return area(g.as_polygon())
     if g.is_multipolygon():
@@ -51,7 +51,7 @@ fn area(g: Geometry) -> Float64:
     return 0.0
 
 
-fn distance(a: Geometry, b: Geometry) -> Float64:
+def distance(a: Geometry, b: Geometry) -> Float64:
     if a.is_point() and b.is_point():
         return distance(a.as_point(), b.as_point())
     if a.is_point() and b.is_linestring():
@@ -107,10 +107,10 @@ fn distance(a: Geometry, b: Geometry) -> Float64:
     return 0.0
 
 
-fn length(line: LineString) -> Float64:
+def length(line: LineString) -> Float64:
     if line.coords.__len__() <= 1:
         return 0.0
-    fn sqrt_f64(x: Float64) -> Float64:
+    def sqrt_f64(x: Float64) -> Float64:
         if x <= 0.0: return 0.0
         var r = x
         var i = 0
@@ -128,14 +128,14 @@ fn length(line: LineString) -> Float64:
     return total
 
 
-fn length(mls: MultiLineString) -> Float64:
+def length(mls: MultiLineString) -> Float64:
     var s = 0.0
     for ln in mls.lines:
         s += length(ln)
     return s
 
 
-fn area(poly: Polygon) -> Float64:
+def area(poly: Polygon) -> Float64:
     # Shoelace over exterior minus holes
     ref ring = poly.shell
     if ring.coords.__len__() < 3:
@@ -159,17 +159,17 @@ fn area(poly: Polygon) -> Float64:
     return total
 
 
-fn area(mpoly: MultiPolygon) -> Float64:
+def area(mpoly: MultiPolygon) -> Float64:
     var s = 0.0
     for p in mpoly.polys:
         s += area(p)
     return s
 
 
-fn distance(a: Point, b: Point) -> Float64:
+def distance(a: Point, b: Point) -> Float64:
     var dx = a.x - b.x
     var dy = a.y - b.y
-    fn sqrt_f64(x: Float64) -> Float64:
+    def sqrt_f64(x: Float64) -> Float64:
         if x <= 0.0: return 0.0
         var r = x
         var i = 0
@@ -180,10 +180,10 @@ fn distance(a: Point, b: Point) -> Float64:
     return sqrt_f64(dx * dx + dy * dy)
 
 
-fn distance(a: Point, ls: LineString) -> Float64:
+def distance(a: Point, ls: LineString) -> Float64:
     if ls.coords.__len__() == 0:
         return 0.0
-    fn sqrt_f64(x: Float64) -> Float64:
+    def sqrt_f64(x: Float64) -> Float64:
         if x <= 0.0: return 0.0
         var r = x
         var i = 0
@@ -214,7 +214,7 @@ fn distance(a: Point, ls: LineString) -> Float64:
     return sqrt_f64(best)
 
 
-fn distance(a: LineString, b: LineString) -> Float64:
+def distance(a: LineString, b: LineString) -> Float64:
     if a.coords.__len__() < 2 or b.coords.__len__() < 2:
         # fallback to endpoint distances
         if a.coords.__len__() == 0 or b.coords.__len__() == 0:
@@ -224,7 +224,7 @@ fn distance(a: LineString, b: LineString) -> Float64:
         return distance(pa, pb)
     if any_segment_intersection(a, b):
         return 0.0
-    fn sqrt_f64(x: Float64) -> Float64:
+    def sqrt_f64(x: Float64) -> Float64:
         if x <= 0.0: return 0.0
         var r = x
         var i = 0
@@ -232,7 +232,7 @@ fn distance(a: LineString, b: LineString) -> Float64:
             r = 0.5 * (r + x / r)
             i += 1
         return r
-    fn pt_seg_d2(px: Float64, py: Float64, ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
+    def pt_seg_d2(px: Float64, py: Float64, ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
         var vx = bx - ax
         var vy = by - ay
         var vlen2 = vx * vx + vy * vy
@@ -264,7 +264,7 @@ fn distance(a: LineString, b: LineString) -> Float64:
     return sqrt_f64(best)
 
 
-fn distance(ls: LineString, poly: Polygon) -> Float64:
+def distance(ls: LineString, poly: Polygon) -> Float64:
     # If intersects or endpoint inside, distance is 0
     # Check shell/hole intersections by segments
     var shell_ls = LineString(poly.shell.coords)
@@ -279,7 +279,7 @@ fn distance(ls: LineString, poly: Polygon) -> Float64:
         if point_in_polygon(p0, poly) != 0:
             return 0.0
     # otherwise compute min over segments to polygon edges
-    fn sqrt_f64(x: Float64) -> Float64:
+    def sqrt_f64(x: Float64) -> Float64:
         if x <= 0.0: return 0.0
         var r = x
         var i = 0
@@ -287,7 +287,7 @@ fn distance(ls: LineString, poly: Polygon) -> Float64:
             r = 0.5 * (r + x / r)
             i += 1
         return r
-    fn pt_seg_d2(px: Float64, py: Float64, ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
+    def pt_seg_d2(px: Float64, py: Float64, ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
         var vx = bx - ax
         var vy = by - ay
         var vlen2 = vx * vx + vy * vy
@@ -336,11 +336,11 @@ fn distance(ls: LineString, poly: Polygon) -> Float64:
     return sqrt_f64(best)
 
 
-fn distance(poly: Polygon, ls: LineString) -> Float64:
+def distance(poly: Polygon, ls: LineString) -> Float64:
     return distance(ls, poly)
 
 
-fn distance(a: Polygon, b: Polygon) -> Float64:
+def distance(a: Polygon, b: Polygon) -> Float64:
     # zero if they intersect or one contains a vertex of the other
     var a_ls = LineString(a.shell.coords)
     var b_ls = LineString(b.shell.coords)
@@ -353,7 +353,7 @@ fn distance(a: Polygon, b: Polygon) -> Float64:
         var q = Point(b.shell.coords[0][0], b.shell.coords[0][1])
         if point_in_polygon(q, a) != 0: return 0.0
     # otherwise min distance between shell segments
-    fn sqrt_f64(x: Float64) -> Float64:
+    def sqrt_f64(x: Float64) -> Float64:
         if x <= 0.0: return 0.0
         var r = x
         var i = 0
@@ -361,7 +361,7 @@ fn distance(a: Polygon, b: Polygon) -> Float64:
             r = 0.5 * (r + x / r)
             i += 1
         return r
-    fn pt_seg_d2(px: Float64, py: Float64, ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
+    def pt_seg_d2(px: Float64, py: Float64, ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
         var vx = bx - ax
         var vy = by - ay
         var vlen2 = vx * vx + vy * vy
@@ -393,17 +393,17 @@ fn distance(a: Polygon, b: Polygon) -> Float64:
     return sqrt_f64(best)
 
 
-fn distance(ls: LineString, p: Point) -> Float64:
+def distance(ls: LineString, p: Point) -> Float64:
     return distance(p, ls)
 
 
-fn distance(p: Point, poly: Polygon) -> Float64:
+def distance(p: Point, poly: Polygon) -> Float64:
     # inside or on boundary -> 0
     var rel = point_in_polygon(p, poly)
     if rel != 0:
         return 0.0
 
-    fn sqrt_f64(x: Float64) -> Float64:
+    def sqrt_f64(x: Float64) -> Float64:
         if x <= 0.0:
             return 0.0
         var r = x

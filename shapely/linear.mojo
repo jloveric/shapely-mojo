@@ -2,13 +2,13 @@ from shapely._geometry import Geometry
 from shapely.geometry import Point, LineString, MultiLineString, GeometryCollection
 
 
-fn line_interpolate_point(line: LineString, distance: Float64, normalized: Bool = False) -> Point:
+def line_interpolate_point(line: LineString, distance: Float64, normalized: Bool = False) -> Point:
     if line.coords.size() == 0:
         return Point(0.0, 0.0)
     if line.coords.size() == 1:
         return Point(line.coords[0][0], line.coords[0][1])
 
-    fn sqrt_f64(x: Float64) -> Float64:
+    def sqrt_f64(x: Float64) -> Float64:
         if x <= 0.0: return 0.0
         var r = x
         var i = 0
@@ -53,13 +53,13 @@ fn line_interpolate_point(line: LineString, distance: Float64, normalized: Bool 
     return Point(line.coords[line.coords.size() - 1][0], line.coords[line.coords.size() - 1][1])
 
 
-fn line_locate_point(_line: LineString, _other: Point, normalized: Bool = False) -> Float64:
+def line_locate_point(_line: LineString, _other: Point, normalized: Bool = False) -> Float64:
     if _line.coords.size() == 0:
         return 0.0
     if _line.coords.size() == 1:
         return 0.0
 
-    fn sqrt_f64(x: Float64) -> Float64:
+    def sqrt_f64(x: Float64) -> Float64:
         if x <= 0.0: return 0.0
         var r = x
         var i = 0
@@ -114,12 +114,12 @@ fn line_locate_point(_line: LineString, _other: Point, normalized: Bool = False)
     return total
 
 
-fn line_merge(line: LineString) -> LineString:
+def line_merge(line: LineString) -> LineString:
     # passthrough
     return line
 
 
-fn line_merge(lines: MultiLineString) -> Geometry:
+def line_merge(lines: MultiLineString) -> Geometry:
     # Greedy endpoint-to-endpoint merge of parts
     var parts = List[List[Tuple[Float64, Float64]]]()
     for ln in lines.lines:
@@ -127,11 +127,11 @@ fn line_merge(lines: MultiLineString) -> Geometry:
         for c in ln.coords: seq.append(c)
         parts.append(seq)
 
-    fn first(ps: List[Tuple[Float64, Float64]]) -> Tuple[Float64, Float64]:
+    def first(ps: List[Tuple[Float64, Float64]]) -> Tuple[Float64, Float64]:
         return ps[0]
-    fn last(ps: List[Tuple[Float64, Float64]]) -> Tuple[Float64, Float64]:
+    def last(ps: List[Tuple[Float64, Float64]]) -> Tuple[Float64, Float64]:
         return ps[ps.size() - 1]
-    fn reverse_list(xs: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Float64]]:
+    def reverse_list(xs: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Float64]]:
         var out = List[Tuple[Float64, Float64]]()
         var i = xs.size() - 1
         while True:
@@ -196,7 +196,7 @@ fn line_merge(lines: MultiLineString) -> Geometry:
     return MultiLineString(out)
 
 
-fn shared_paths(a: LineString, b: LineString) -> GeometryCollection:
+def shared_paths(a: LineString, b: LineString) -> GeometryCollection:
     var forward = List[LineString]()
     var reverse = List[LineString]()
     for i in range(0, a.coords.size() - 1):
@@ -209,9 +209,11 @@ fn shared_paths(a: LineString, b: LineString) -> GeometryCollection:
                 forward.append(LineString([a1, a2]))
             elif a1[0] == b2[0] and a1[1] == b2[1] and a2[0] == b1[0] and a2[1] == b1[1]:
                 reverse.append(LineString([a1, a2]))
-    return GeometryCollection([MultiLineString(forward), MultiLineString(reverse)])
+    return GeometryCollection(
+        [Geometry(MultiLineString(forward)), Geometry(MultiLineString(reverse))]
+    )
 
 
-fn shortest_line(_a: Geometry, _b: Geometry) -> LineString:
+def shortest_line(_a: Geometry, _b: Geometry) -> LineString:
     # placeholder: origin-to-origin
     return LineString([(0.0, 0.0), (0.0, 0.0)])

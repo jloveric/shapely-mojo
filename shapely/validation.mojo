@@ -1,9 +1,9 @@
-from shapely._geometry import Geometry
+from shapely._geometry import Geometry, geometry_from_member
 from shapely.geometry import LineString, MultiLineString, LinearRing, Polygon, MultiPolygon, GeometryCollection
 from shapely.ops import polygonize_full
 
 
-fn _close_ring_coords(coords: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Float64]]:
+def _close_ring_coords(coords: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Float64]]:
     if coords.__len__() == 0:
         return coords.copy()
     var out = coords.copy()
@@ -14,7 +14,7 @@ fn _close_ring_coords(coords: List[Tuple[Float64, Float64]]) -> List[Tuple[Float
     return out.copy()
 
 
-fn _make_valid_polygon(p: Polygon) -> Polygon:
+def _make_valid_polygon(p: Polygon) -> Polygon:
     var shell_coords = _close_ring_coords(p.shell.coords)
     var shell = LinearRing(shell_coords)
 
@@ -25,11 +25,11 @@ fn _make_valid_polygon(p: Polygon) -> Polygon:
     return Polygon(shell, holes)
 
 
-fn _polygonize_boundary(p: Polygon) -> Geometry:
+def _polygonize_boundary(p: Polygon) -> Geometry:
     # Build linework from polygon boundary and polygonize it to resolve self-intersections.
     var segs = List[LineString]()
 
-    fn add_ring(coords_in: List[Tuple[Float64, Float64]], mut segs: List[LineString]):
+    def add_ring(coords_in: List[Tuple[Float64, Float64]], mut segs: List[LineString]):
         var coords = _close_ring_coords(coords_in)
         if coords.__len__() < 4:
             return
@@ -46,21 +46,22 @@ fn _polygonize_boundary(p: Polygon) -> Geometry:
         add_ring(h.coords, segs)
 
     if segs.__len__() == 0:
-        return Geometry(GeometryCollection([]))
+        return Geometry(GeometryCollection())
 
     var mls = MultiLineString(segs)
     var res = polygonize_full(Geometry(mls.copy()))
     ref polys = res[0]
 
     var out_polys = List[Polygon]()
-    for g in polys.geoms:
+    for p in polys.geoms:
+        var g = geometry_from_member(p)
         if g.is_polygon():
             out_polys.append(g.as_polygon())
         elif g.is_multipolygon():
             for pp in g.as_multipolygon().polys:
                 out_polys.append(pp.copy())
 
-    fn _try_split_self_touch(shell: LinearRing) -> List[LinearRing]:
+    def _try_split_self_touch(shell: LinearRing) -> List[LinearRing]:
         var coords = _close_ring_coords(shell.coords)
         if coords.__len__() < 7:
             return List[LinearRing]()
@@ -116,7 +117,7 @@ fn _polygonize_boundary(p: Polygon) -> Geometry:
         return List[LinearRing]()
 
     if out_polys.__len__() == 0:
-        return Geometry(GeometryCollection([]))
+        return Geometry(GeometryCollection())
     if out_polys.__len__() == 1:
         # If polygonization produced a single self-touching ring (e.g. bowtie), split it.
         var p0 = out_polys[0].copy()
@@ -127,7 +128,7 @@ fn _polygonize_boundary(p: Polygon) -> Geometry:
     return Geometry(MultiPolygon(out_polys))
 
 
-fn make_valid(geom: Geometry) -> Geometry:
+def make_valid(geom: Geometry) -> Geometry:
     # Best-effort Shapely-like make_valid for polygons: close rings and
     # polygonize boundary linework to resolve self-intersections.
     if geom.is_polygon():
@@ -145,6 +146,6 @@ fn make_valid(geom: Geometry) -> Geometry:
                 for pp in g.as_multipolygon().polys:
                     out.append(pp.copy())
         if out.__len__() == 0:
-            return Geometry(GeometryCollection([]))
+            return Geometry(GeometryCollection())
         return Geometry(MultiPolygon(out))
     return geom.copy()

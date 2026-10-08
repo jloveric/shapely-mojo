@@ -1,4 +1,4 @@
-from python import Python, PythonObject
+from std.python import Python, PythonObject
 
 from shapely._geometry import Geometry
 from shapely.geometry import LineString, MultiLineString
@@ -14,12 +14,12 @@ from shapely.constructive import (
 from shapely.validation import make_valid
 
 
-fn _ensure_outputs_dir() raises:
+def _ensure_outputs_dir() raises:
     var os: PythonObject = Python.import_module("os")
     os.makedirs("outputs", exist_ok=True)
 
 
-fn _plot_coords(
+def _plot_coords(
     plt: PythonObject,
     coords: List[Tuple[Float64, Float64]],
     color: String,
@@ -48,7 +48,7 @@ fn _plot_coords(
         plt.plot(xs, ys, color=color, linewidth=lw, alpha=alpha)
 
 
-fn _plot_geom(
+def _plot_geom(
     plt: PythonObject,
     geom: Geometry,
     color: String,
@@ -67,7 +67,7 @@ fn _plot_geom(
             j += 1
 
 
-fn main() raises:
+def main() raises:
     _ensure_outputs_dir()
 
     var plt: PythonObject = Python.import_module("matplotlib.pyplot")

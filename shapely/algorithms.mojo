@@ -1,13 +1,13 @@
 from shapely.geometry import Point, LineString, LinearRing, Polygon
 
 
-fn abs_f64(x: Float64) -> Float64:
+def abs_f64(x: Float64) -> Float64:
     if x < 0.0:
         return -x
     return x
 
 
-fn orientation(
+def orientation(
     ax: Float64, ay: Float64, bx: Float64, by: Float64, cx: Float64, cy: Float64
 ) -> Int32:
     var v = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)
@@ -18,7 +18,7 @@ fn orientation(
     return 0
 
 
-fn on_segment(
+def on_segment(
     ax: Float64, ay: Float64, bx: Float64, by: Float64, cx: Float64, cy: Float64
 ) -> Bool:
     if orientation(ax, ay, bx, by, cx, cy) != 0:
@@ -30,7 +30,7 @@ fn on_segment(
     return cx >= minx and cx <= maxx and cy >= miny and cy <= maxy
 
 
-fn segments_intersect(
+def segments_intersect(
     a1: Tuple[Float64, Float64],
     a2: Tuple[Float64, Float64],
     b1: Tuple[Float64, Float64],
@@ -54,7 +54,7 @@ fn segments_intersect(
     return False
 
 
-fn point_on_linestring(p: Point, ls: LineString) -> Bool:
+def point_on_linestring(p: Point, ls: LineString) -> Bool:
     if ls.coords.__len__() < 2:
         return False
     var px = p.x
@@ -67,7 +67,7 @@ fn point_on_linestring(p: Point, ls: LineString) -> Bool:
     return False
 
 
-fn point_in_ring(pt: Point, ring: LinearRing) -> Int32:
+def point_in_ring(pt: Point, ring: LinearRing) -> Int32:
     # returns: 2 if on boundary, 1 if inside, 0 if outside
     var n = ring.coords.__len__()
     if n < 2:
@@ -95,7 +95,7 @@ fn point_in_ring(pt: Point, ring: LinearRing) -> Int32:
     return 1 if inside else 0
 
 
-fn point_in_polygon(pt: Point, poly: Polygon) -> Int32:
+def point_in_polygon(pt: Point, poly: Polygon) -> Int32:
     ref shell = poly.shell
     var shell_res = point_in_ring(pt, shell)
     if shell_res == 0:
@@ -111,7 +111,7 @@ fn point_in_polygon(pt: Point, poly: Polygon) -> Int32:
     return 1
 
 
-fn any_segment_intersection(a: LineString, b: LineString) -> Bool:
+def any_segment_intersection(a: LineString, b: LineString) -> Bool:
     if a.coords.__len__() < 2 or b.coords.__len__() < 2:
         return False
     for i in range(0, a.coords.__len__() - 1):
@@ -125,7 +125,7 @@ fn any_segment_intersection(a: LineString, b: LineString) -> Bool:
     return False
 
 
-fn any_segment_intersection_coords(
+def any_segment_intersection_coords(
     a_coords: List[Tuple[Float64, Float64]],
     b_coords: List[Tuple[Float64, Float64]],
 ) -> Bool:
@@ -142,7 +142,7 @@ fn any_segment_intersection_coords(
     return False
 
 
-fn signed_area_coords(coords: List[Tuple[Float64, Float64]]) -> Float64:
+def signed_area_coords(coords: List[Tuple[Float64, Float64]]) -> Float64:
     if coords.__len__() < 2:
         return 0.0
     var s = 0.0
@@ -153,11 +153,11 @@ fn signed_area_coords(coords: List[Tuple[Float64, Float64]]) -> Float64:
     return 0.5 * s
 
 
-fn ring_is_ccw(r: LinearRing) -> Bool:
+def ring_is_ccw(r: LinearRing) -> Bool:
     return signed_area_coords(r.coords) > 0.0
 
 
-fn segment_intersections(
+def segment_intersections(
     a1: Tuple[Float64, Float64],
     a2: Tuple[Float64, Float64],
     b1: Tuple[Float64, Float64],
@@ -170,7 +170,7 @@ fn segment_intersections(
     var s_y = b2[1] - b1[1]
     var cross_rs = r_x * s_y - r_y * s_x
 
-    fn absf(x: Float64) -> Float64:
+    def absf(x: Float64) -> Float64:
         if x < 0.0:
             return -x
         return x

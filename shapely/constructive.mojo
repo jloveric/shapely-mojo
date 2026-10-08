@@ -1,4 +1,4 @@
-from shapely._geometry import Geometry
+from shapely._geometry import Geometry, geometry_from_member
 from shapely.geometry import (
     Point,
     LineString,
@@ -14,19 +14,19 @@ from shapely.ops import polygonize_full
 from shapely.algorithms import signed_area_coords, segments_intersect, point_in_ring
 
 
-alias CapStyle = Int32
-alias JoinStyle = Int32
+comptime CapStyle = Int32
+comptime JoinStyle = Int32
 
-alias CAP_ROUND = 1
-alias CAP_FLAT = 2
-alias CAP_SQUARE = 3
+comptime CAP_ROUND = 1
+comptime CAP_FLAT = 2
+comptime CAP_SQUARE = 3
 
-alias JOIN_ROUND = 1
-alias JOIN_BEVEL = 2
-alias JOIN_MITRE = 3
+comptime JOIN_ROUND = 1
+comptime JOIN_BEVEL = 2
+comptime JOIN_MITRE = 3
 
 
-fn sqrt_f64(x: Float64) -> Float64:
+def sqrt_f64(x: Float64) -> Float64:
     if x <= 0.0:
         return 0.0
     var r = x
@@ -37,11 +37,11 @@ fn sqrt_f64(x: Float64) -> Float64:
     return r
 
 
-fn _empty_polygon() -> Polygon:
+def _empty_polygon() -> Polygon:
     return Polygon(LinearRing(List[Tuple[Float64, Float64]]()))
 
 
-fn _circle_polygon(cx: Float64, cy: Float64, r: Float64) -> Polygon:
+def _circle_polygon(cx: Float64, cy: Float64, r: Float64) -> Polygon:
     if r <= 0.0:
         return _empty_polygon()
     var s = sqrt_f64(0.5)
@@ -58,12 +58,12 @@ fn _circle_polygon(cx: Float64, cy: Float64, r: Float64) -> Polygon:
     return Polygon(LinearRing(pts))
 
 
-fn circle(cx: Float64, cy: Float64, r: Float64, quad_segs: Int32 = 8) -> Geometry:
+def circle(cx: Float64, cy: Float64, r: Float64, quad_segs: Int32 = 8) -> Geometry:
     _ = quad_segs
     return Geometry(_circle_polygon(cx, cy, r))
 
 
-fn _unit_tangent(ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Tuple[Float64, Float64]:
+def _unit_tangent(ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Tuple[Float64, Float64]:
     var dx = bx - ax
     var dy = by - ay
     var len = sqrt_f64(dx * dx + dy * dy)
@@ -72,19 +72,19 @@ fn _unit_tangent(ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Tuple[Fl
     return (dx / len, dy / len)
 
 
-fn _unit_normal_left(tx: Float64, ty: Float64) -> Tuple[Float64, Float64]:
+def _unit_normal_left(tx: Float64, ty: Float64) -> Tuple[Float64, Float64]:
     return (-ty, tx)
 
 
-fn _dot(ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
+def _dot(ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
     return ax * bx + ay * by
 
 
-fn _cross(ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
+def _cross(ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
     return ax * by - ay * bx
 
 
-fn _close_ring(mut coords: List[Tuple[Float64, Float64]]):
+def _close_ring(mut coords: List[Tuple[Float64, Float64]]):
     if coords.__len__() == 0:
         return
     var first = coords[0]
@@ -93,7 +93,7 @@ fn _close_ring(mut coords: List[Tuple[Float64, Float64]]):
         coords.append(first)
 
 
-fn _reverse_coords(coords: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Float64]]:
+def _reverse_coords(coords: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Float64]]:
     var out = List[Tuple[Float64, Float64]]()
     var i: Int = coords.__len__() - 1
     while i >= 0:
@@ -103,7 +103,7 @@ fn _reverse_coords(coords: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64,
     return out.copy()
 
 
-fn _offset_ring_inward_round(
+def _offset_ring_inward_round(
     coords: List[Tuple[Float64, Float64]],
     distance: Float64,
     quad_segs: Int32,
@@ -197,7 +197,7 @@ fn _offset_ring_inward_round(
     return out.copy()
 
 
-fn _collect_coords(geom: Geometry, mut out: List[Tuple[Float64, Float64]]):
+def _collect_coords(geom: Geometry, mut out: List[Tuple[Float64, Float64]]):
     if geom.is_point():
         var p = geom.as_point()
         out.append((p.x, p.y))
@@ -237,12 +237,12 @@ fn _collect_coords(geom: Geometry, mut out: List[Tuple[Float64, Float64]]):
         return
     if geom.is_geometrycollection():
         var gc = geom.as_geometrycollection()
-        for g in gc.geoms:
-            _collect_coords(g.copy(), out)
+        for p in gc.geoms:
+            _collect_coords(geometry_from_member(p), out)
         return
 
 
-fn _sort_points_lex(mut pts: List[Tuple[Float64, Float64]]):
+def _sort_points_lex(mut pts: List[Tuple[Float64, Float64]]):
     # insertion sort
     var i = 1
     while i < pts.__len__():
@@ -258,7 +258,7 @@ fn _sort_points_lex(mut pts: List[Tuple[Float64, Float64]]):
         i += 1
 
 
-fn _unique_sorted_points(pts: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Float64]]:
+def _unique_sorted_points(pts: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Float64]]:
     if pts.__len__() == 0:
         return pts.copy()
     var out = List[Tuple[Float64, Float64]]()
@@ -273,7 +273,7 @@ fn _unique_sorted_points(pts: List[Tuple[Float64, Float64]]) -> List[Tuple[Float
     return out.copy()
 
 
-fn _hull_ring(points: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Float64]]:
+def _hull_ring(points: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Float64]]:
     if points.__len__() <= 1:
         return points.copy()
     var pts = points.copy()
@@ -320,7 +320,7 @@ fn _hull_ring(points: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Floa
     return ring.copy()
 
 
-fn _point_seg_dist2(px: Float64, py: Float64, ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
+def _point_seg_dist2(px: Float64, py: Float64, ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
     var vx = bx - ax
     var vy = by - ay
     var wx = px - ax
@@ -343,7 +343,7 @@ fn _point_seg_dist2(px: Float64, py: Float64, ax: Float64, ay: Float64, bx: Floa
     return dx3 * dx3 + dy3 * dy3
 
 
-fn _simplify_linestring(ls: LineString, tol: Float64) -> LineString:
+def _simplify_linestring(ls: LineString, tol: Float64) -> LineString:
     if ls.coords.__len__() <= 2:
         return ls.copy()
     if tol <= 0.0:
@@ -399,7 +399,7 @@ fn _simplify_linestring(ls: LineString, tol: Float64) -> LineString:
     return LineString(out)
 
 
-fn _simplify_ring_coords(coords: List[Tuple[Float64, Float64]], tol: Float64) -> List[Tuple[Float64, Float64]]:
+def _simplify_ring_coords(coords: List[Tuple[Float64, Float64]], tol: Float64) -> List[Tuple[Float64, Float64]]:
     if coords.__len__() < 4:
         return coords.copy()
     var open = coords.copy()
@@ -420,7 +420,7 @@ fn _simplify_ring_coords(coords: List[Tuple[Float64, Float64]], tol: Float64) ->
     return out.copy()
 
 
-fn _line_intersection(
+def _line_intersection(
     p1x: Float64,
     p1y: Float64,
     d1x: Float64,
@@ -440,7 +440,7 @@ fn _line_intersection(
     return ((p1x + t * d1x, p1y + t * d1y), True)
 
 
-fn _line_intersection_tu(
+def _line_intersection_tu(
     p1x: Float64,
     p1y: Float64,
     d1x: Float64,
@@ -461,7 +461,7 @@ fn _line_intersection_tu(
     return ((p1x + t * d1x, p1y + t * d1y), t, u, True)
 
 
-fn _append_arc(
+def _append_arc(
     mut out: List[Tuple[Float64, Float64]],
     cx: Float64,
     cy: Float64,
@@ -517,7 +517,7 @@ fn _append_arc(
             t += 1
         bi += 1
 
-    fn best_idx(vx: Float64, vy: Float64, dirs: List[Tuple[Float64, Float64]]) -> Int32:
+    def best_idx(vx: Float64, vy: Float64, dirs: List[Tuple[Float64, Float64]]) -> Int32:
         var best = -1.0e308
         var besti: Int32 = 0
         var i = 0
@@ -567,7 +567,7 @@ fn _append_arc(
             out.append((cx + dirs[i][0] * r, cy + dirs[i][1] * r))
 
 
-fn _append_arc_join(
+def _append_arc_join(
     mut out: List[Tuple[Float64, Float64]],
     cx: Float64,
     cy: Float64,
@@ -620,7 +620,7 @@ fn _append_arc_join(
         j += 1
 
 
-fn _segment_tube(ax: Float64, ay: Float64, bx: Float64, by: Float64, r: Float64) -> Polygon:
+def _segment_tube(ax: Float64, ay: Float64, bx: Float64, by: Float64, r: Float64) -> Polygon:
     var dx = bx - ax
     var dy = by - ay
     var len = sqrt_f64(dx * dx + dy * dy)
@@ -637,7 +637,7 @@ fn _segment_tube(ax: Float64, ay: Float64, bx: Float64, by: Float64, r: Float64)
     return Polygon(LinearRing(pts))
 
 
-fn _disk(cx: Float64, cy: Float64, r: Float64, quad_segs: Int32) -> Polygon:
+def _disk(cx: Float64, cy: Float64, r: Float64, quad_segs: Int32) -> Polygon:
     if r <= 0.0:
         return _empty_polygon()
     var segs: Int = Int(quad_segs)
@@ -689,7 +689,7 @@ fn _disk(cx: Float64, cy: Float64, r: Float64, quad_segs: Int32) -> Polygon:
     return Polygon(LinearRing(ring))
 
 
-fn _is_convex_closed_ring(coords: List[Tuple[Float64, Float64]]) -> Bool:
+def _is_convex_closed_ring(coords: List[Tuple[Float64, Float64]]) -> Bool:
     if coords.__len__() < 4:
         return False
 
@@ -724,7 +724,7 @@ fn _is_convex_closed_ring(coords: List[Tuple[Float64, Float64]]) -> Bool:
     return True
 
 
-fn _dedup_consecutive_closed(
+def _dedup_consecutive_closed(
     coords: List[Tuple[Float64, Float64]]
 ) -> List[Tuple[Float64, Float64]]:
     var out = List[Tuple[Float64, Float64]]()
@@ -746,7 +746,7 @@ fn _dedup_consecutive_closed(
     return out.copy()
 
 
-fn _coords_bbox(
+def _coords_bbox(
     coords: List[Tuple[Float64, Float64]]
 ) -> Tuple[Float64, Float64, Float64, Float64]:
     if coords.__len__() == 0:
@@ -770,7 +770,7 @@ fn _coords_bbox(
     return (minx, miny, maxx, maxy)
 
 
-fn _rings_intersect(
+def _rings_intersect(
     a: List[Tuple[Float64, Float64]],
     b: List[Tuple[Float64, Float64]],
 ) -> Bool:
@@ -809,7 +809,7 @@ fn _rings_intersect(
     return False
 
 
-fn _ring_has_self_intersection(coords: List[Tuple[Float64, Float64]]) -> Bool:
+def _ring_has_self_intersection(coords: List[Tuple[Float64, Float64]]) -> Bool:
     if coords.__len__() < 4:
         return False
     var n = coords.__len__() - 1
@@ -848,7 +848,7 @@ fn _ring_has_self_intersection(coords: List[Tuple[Float64, Float64]]) -> Bool:
     return False
 
 
-fn _offset_ring_outward_round(
+def _offset_ring_outward_round(
     coords: List[Tuple[Float64, Float64]],
     distance: Float64,
     quad_segs: Int32,
@@ -947,7 +947,7 @@ fn _offset_ring_outward_round(
     return out.copy()
 
 
-fn _is_axis_aligned_box_shell(
+def _is_axis_aligned_box_shell(
     coords: List[Tuple[Float64, Float64]],
     xmin: Float64,
     ymin: Float64,
@@ -988,7 +988,7 @@ fn _is_axis_aligned_box_shell(
     return False
 
 
-fn _rounded_rect_polygon(
+def _rounded_rect_polygon(
     xmin: Float64,
     ymin: Float64,
     xmax: Float64,
@@ -1017,7 +1017,7 @@ fn _rounded_rect_polygon(
     return Polygon(LinearRing(ring))
 
 
-fn buffer(geom: Geometry, _distance: Float64, _quad_segs: Int32 = 16) -> Geometry:
+def buffer(geom: Geometry, _distance: Float64, _quad_segs: Int32 = 16) -> Geometry:
     if _distance <= 0.0:
         return geom.copy()
     if geom.is_linestring():
@@ -1031,7 +1031,7 @@ fn buffer(geom: Geometry, _distance: Float64, _quad_segs: Int32 = 16) -> Geometr
     return geom.copy()
 
 
-fn buffer(
+def buffer(
     geom: Geometry,
     _distance: Float64,
     _quad_segs: Int32,
@@ -1052,11 +1052,11 @@ fn buffer(
     return geom.copy()
 
 
-fn buffer(ls: LineString, distance: Float64, _quad_segs: Int32 = 16) -> Geometry:
+def buffer(ls: LineString, distance: Float64, _quad_segs: Int32 = 16) -> Geometry:
     return buffer(ls, distance, _quad_segs, CAP_ROUND, JOIN_ROUND, 5.0)
 
 
-fn buffer(
+def buffer(
     ls: LineString,
     distance: Float64,
     _quad_segs: Int32,
@@ -1476,11 +1476,11 @@ fn buffer(
     return Geometry(Polygon(LinearRing(ring)))
 
 
-fn buffer(p: Polygon, distance: Float64, quad_segs: Int32 = 16) -> Geometry:
+def buffer(p: Polygon, distance: Float64, quad_segs: Int32 = 16) -> Geometry:
     return buffer(p, distance, quad_segs, CAP_ROUND, JOIN_ROUND, 5.0)
 
 
-fn buffer(
+def buffer(
     p: Polygon,
     distance: Float64,
     quad_segs: Int32,
@@ -1535,7 +1535,8 @@ fn buffer(
                 ref polys = res[0]
                 var best_area = -1.0
                 var best = _empty_polygon()
-                for g in polys.geoms:
+                for p in polys.geoms:
+                    var g = geometry_from_member(p)
                     if g.is_polygon():
                         var pp = g.as_polygon()
                         var a = pp.area()
@@ -1625,11 +1626,11 @@ fn buffer(
     return acc.copy()
 
 
-fn buffer(mp: MultiPolygon, distance: Float64, quad_segs: Int32 = 16) -> Geometry:
+def buffer(mp: MultiPolygon, distance: Float64, quad_segs: Int32 = 16) -> Geometry:
     return buffer(mp, distance, quad_segs, CAP_ROUND, JOIN_ROUND, 5.0)
 
 
-fn buffer(
+def buffer(
     mp: MultiPolygon,
     distance: Float64,
     quad_segs: Int32,
@@ -1650,14 +1651,14 @@ fn buffer(
     return Geometry(MultiPolygon(polys))
 
 
-fn buffer(mls: MultiLineString, distance: Float64, quad_segs: Int32 = 16) -> Geometry:
+def buffer(mls: MultiLineString, distance: Float64, quad_segs: Int32 = 16) -> Geometry:
     var acc = Geometry(_empty_polygon())
     for ln in mls.lines:
         acc = union(acc, buffer(ln.copy(), distance, quad_segs))
     return acc.copy()
 
 
-fn buffer(
+def buffer(
     mls: MultiLineString,
     distance: Float64,
     quad_segs: Int32,
@@ -1677,7 +1678,7 @@ fn buffer(
     return Geometry(MultiPolygon(polys))
 
 
-fn simplify(geom: Geometry, _tolerance: Float64, _preserve_topology: Bool = True) -> Geometry:
+def simplify(geom: Geometry, _tolerance: Float64, _preserve_topology: Bool = True) -> Geometry:
     if geom.is_linestring():
         return Geometry(_simplify_linestring(geom.as_linestring(), _tolerance))
     if geom.is_multilinestring():
@@ -1708,11 +1709,11 @@ fn simplify(geom: Geometry, _tolerance: Float64, _preserve_topology: Bool = True
     return geom.copy()
 
 
-fn convex_hull(geom: Geometry) -> Geometry:
+def convex_hull(geom: Geometry) -> Geometry:
     var pts = List[Tuple[Float64, Float64]]()
     _collect_coords(geom.copy(), pts)
     if pts.__len__() == 0:
-        return Geometry(GeometryCollection([]))
+        return Geometry(GeometryCollection())
     var ring = _hull_ring(pts)
     if ring.__len__() == 1:
         return Geometry(Point(ring[0][0], ring[0][1]))
@@ -1725,4 +1726,4 @@ fn convex_hull(geom: Geometry) -> Geometry:
         if first[0] != last[0] or first[1] != last[1]:
             out.append(first)
         return Geometry(Polygon(LinearRing(out)))
-    return Geometry(GeometryCollection([]))
+    return Geometry(GeometryCollection())

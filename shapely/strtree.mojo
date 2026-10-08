@@ -44,7 +44,7 @@ struct STRtree:
     var tree_root: Int32
     var tree_max_children: Int32
 
-    fn __init__(out self, geoms: List[Geometry]):
+    def __init__(out self, geoms: List[Geometry]):
         self.geoms = geoms.copy()
         self.boxes = List[Tuple[Float64, Float64, Float64, Float64]]()
         self.grid = List[List[Int32]]()
@@ -67,7 +67,7 @@ struct STRtree:
         self.tree_root = -1
         self.tree_max_children = 16
 
-        fn _bounds_of(g: Geometry) -> Tuple[Float64, Float64, Float64, Float64]:
+        def _bounds_of(g: Geometry) -> Tuple[Float64, Float64, Float64, Float64]:
             return g.bounds()
 
         for g in self.geoms:
@@ -75,14 +75,14 @@ struct STRtree:
 
         self._build_strtree(self.tree_max_children)
 
-    fn _env_intersects(
+    def _env_intersects(
         self,
         a: Tuple[Float64, Float64, Float64, Float64],
         b: Tuple[Float64, Float64, Float64, Float64],
     ) -> Bool:
         return not (a[2] < b[0] or b[2] < a[0] or a[3] < b[1] or b[3] < a[1])
 
-    fn _env_dist2(
+    def _env_dist2(
         self,
         a: Tuple[Float64, Float64, Float64, Float64],
         b: Tuple[Float64, Float64, Float64, Float64],
@@ -99,7 +99,7 @@ struct STRtree:
             dy = a[1] - b[3]
         return dx * dx + dy * dy
 
-    fn _sqrt_f64(self, x: Float64) -> Float64:
+    def _sqrt_f64(self, x: Float64) -> Float64:
         if x <= 0.0:
             return 0.0
         var r = x
@@ -109,7 +109,7 @@ struct STRtree:
             i += 1
         return r
 
-    fn _union_bbox(
+    def _union_bbox(
         self,
         a: Tuple[Float64, Float64, Float64, Float64],
         b: Tuple[Float64, Float64, Float64, Float64],
@@ -128,7 +128,7 @@ struct STRtree:
             maxy = b[3]
         return (minx, miny, maxx, maxy)
 
-    fn _init_stamp(mut self):
+    def _init_stamp(mut self):
         self.stamp = List[Int32]()
         self.stamp_gen = 1
         var n = self.boxes.__len__()
@@ -137,7 +137,7 @@ struct STRtree:
             self.stamp.append(0)
             i += 1
 
-    fn _next_stamp(mut self) -> Int32:
+    def _next_stamp(mut self) -> Int32:
         # If we ever approach overflow, reset all stamps.
         if self.stamp_gen >= 2147483646:
             var i = 0
@@ -151,23 +151,23 @@ struct STRtree:
             self.stamp_gen = 1
         return self.stamp_gen
 
-    fn _ceil_div(self, a: Int, b: Int) -> Int:
+    def _ceil_div(self, a: Int, b: Int) -> Int:
         var q: Int = Int(Float64(a) / Float64(b))
         if a % b != 0:
             q += 1
         return q
 
-    fn _clamp_i32(self, v: Int32, lo: Int32, hi: Int32) -> Int32:
+    def _clamp_i32(self, v: Int32, lo: Int32, hi: Int32) -> Int32:
         if v < lo:
             return lo
         if v > hi:
             return hi
         return v
 
-    fn _cell_index(self, ix: Int32, iy: Int32) -> Int:
+    def _cell_index(self, ix: Int32, iy: Int32) -> Int:
         return Int(ix) + Int(iy) * Int(self.nx)
 
-    fn _cell_coords_of(self, x: Float64, y: Float64) -> Tuple[Int32, Int32]:
+    def _cell_coords_of(self, x: Float64, y: Float64) -> Tuple[Int32, Int32]:
         if self.nx <= 0 or self.ny <= 0:
             return (0, 0)
         var fx = (x - self.minx) / self.cell_w
@@ -178,7 +178,7 @@ struct STRtree:
         iy = self._clamp_i32(iy, 0, self.ny - 1)
         return (ix, iy)
 
-    fn _cell_range_for_bbox(
+    def _cell_range_for_bbox(
         self, b: Tuple[Float64, Float64, Float64, Float64]
     ) -> Tuple[Int32, Int32, Int32, Int32]:
         if self.nx <= 0 or self.ny <= 0:
@@ -197,7 +197,7 @@ struct STRtree:
         iy1 = self._clamp_i32(iy1, 0, self.ny - 1)
         return (ix0, iy0, ix1, iy1)
 
-    fn _build_grid(mut self):
+    def _build_grid(mut self):
         self.grid = List[List[Int32]]()
         self.nx = 0
         self.ny = 0
@@ -266,13 +266,13 @@ struct STRtree:
                 ix += 1
             i += 1
 
-    fn _node_union_boxes(
+    def _node_union_boxes(
         self, ids: List[Int32]
     ) -> Tuple[Float64, Float64, Float64, Float64]:
         # Stub retained for compatibility; not used in naive implementation
         return (0.0, 0.0, 0.0, 0.0)
 
-    fn _geom_union_boxes(
+    def _geom_union_boxes(
         self, ids: List[Int32]
     ) -> Tuple[Float64, Float64, Float64, Float64]:
         var minx = 1.7976931348623157e308
@@ -293,7 +293,7 @@ struct STRtree:
             i += 1
         return (minx, miny, maxx, maxy)
 
-    fn _sort_key(self, id: Int32, axis: Int32, is_node: Bool) -> Float64:
+    def _sort_key(self, id: Int32, axis: Int32, is_node: Bool) -> Float64:
         if is_node:
             var b = self.tree_nodes_bbox[Int(id)]
             if axis == 0:
@@ -304,7 +304,7 @@ struct STRtree:
             return b2[0]
         return b2[1]
 
-    fn _sort_gt(
+    def _sort_gt(
         self,
         a: Int32,
         b: Int32,
@@ -328,14 +328,14 @@ struct STRtree:
 
         return a > b
 
-    fn _swap_i32(self, mut arr: List[Int32], i: Int, j: Int):
+    def _swap_i32(self, mut arr: List[Int32], i: Int, j: Int):
         if i == j:
             return
         var t = arr[i]
         arr[i] = arr[j]
         arr[j] = t
 
-    fn _heapsort_range(
+    def _heapsort_range(
         self,
         mut idx: List[Int32],
         start: Int,
@@ -348,7 +348,7 @@ struct STRtree:
         if n <= 1:
             return
 
-        fn sift_down(
+        def sift_down(
             tree: STRtree,
             mut a: List[Int32],
             start: Int,
@@ -389,25 +389,25 @@ struct STRtree:
             sift_down(self, idx, start, end, 0, primary, secondary, is_node)
             end -= 1
 
-    fn _qsort_geom_by_minx(self, mut idx: List[Int32], lo: Int, hi: Int):
+    def _qsort_geom_by_minx(self, mut idx: List[Int32], lo: Int, hi: Int):
         # Insertion sort for stability and to avoid recursive quicksort (compiler crash workaround)
         self._heapsort_range(idx, lo, hi + 1, 0, 1, False)
 
-    fn _qsort_geom_slice_by_miny(
+    def _qsort_geom_slice_by_miny(
         self, mut idx: List[Int32], start: Int, end_excl: Int
     ):
         # Insertion sort slice by miny
         self._heapsort_range(idx, start, end_excl, 1, 0, False)
 
-    fn _qsort_node_by_minx(self, mut idx: List[Int32], lo: Int, hi: Int):
+    def _qsort_node_by_minx(self, mut idx: List[Int32], lo: Int, hi: Int):
         self._heapsort_range(idx, lo, hi + 1, 0, 1, True)
 
-    fn _qsort_node_slice_by_miny(
+    def _qsort_node_slice_by_miny(
         self, mut idx: List[Int32], start: Int, end_excl: Int
     ):
         self._heapsort_range(idx, start, end_excl, 1, 0, True)
 
-    fn _build_strtree(mut self, max_children: Int32):
+    def _build_strtree(mut self, max_children: Int32):
         self.tree_nodes_bbox = List[Tuple[Float64, Float64, Float64, Float64]]()
         self.tree_nodes_child_start = List[Int32]()
         self.tree_nodes_child_count = List[Int32]()
@@ -521,11 +521,11 @@ struct STRtree:
 
         self.tree_root = level[0]
 
-    fn _build(self, max_children: Int32):
+    def _build(self, max_children: Int32):
         # Naive implementation does not build a tree
         return
 
-    fn query(self, _target: Geometry) -> List[Geometry]:
+    def query(self, _target: Geometry) -> List[Geometry]:
         var idxs = self.query_items(_target)
         var out = List[Geometry]()
         var i = 0
@@ -534,10 +534,10 @@ struct STRtree:
             i += 1
         return out^
 
-    fn query(self, _target: Polygon) -> List[Geometry]:
+    def query(self, _target: Polygon) -> List[Geometry]:
         return self.query(Geometry(_target.copy()))
 
-    fn query(self, _target: Geometry, predicate: String) -> List[Geometry]:
+    def query(self, _target: Geometry, predicate: String) -> List[Geometry]:
         var idxs = self.query_items(_target, predicate)
         var out = List[Geometry]()
         var i = 0
@@ -546,10 +546,10 @@ struct STRtree:
             i += 1
         return out^
 
-    fn query(self, _target: Polygon, predicate: String) -> List[Geometry]:
+    def query(self, _target: Polygon, predicate: String) -> List[Geometry]:
         return self.query(Geometry(_target.copy()), predicate)
 
-    fn nearest(self, _target: Geometry) -> Geometry:
+    def nearest(self, _target: Geometry) -> Geometry:
         if self.boxes.__len__() == 0:
             return Geometry(Polygon(LinearRing(List[Tuple[Float64, Float64]]())))
         var t = self._nearest_idx(_target)
@@ -557,7 +557,7 @@ struct STRtree:
             return Geometry(Polygon(LinearRing(List[Tuple[Float64, Float64]]())))
         return self.geoms[Int(t[0])].copy()
 
-    fn nearest(self, _target: Point) -> Geometry:
+    def nearest(self, _target: Point) -> Geometry:
         if self.boxes.__len__() == 0:
             return Geometry(Polygon(LinearRing(List[Tuple[Float64, Float64]]())))
         var t = self._nearest_idx(_target)
@@ -565,7 +565,7 @@ struct STRtree:
             return Geometry(Polygon(LinearRing(List[Tuple[Float64, Float64]]())))
         return self.geoms[Int(t[0])].copy()
 
-    fn query_knn(self, _target: Geometry, k: Int32) -> List[Geometry]:
+    def query_knn(self, _target: Geometry, k: Int32) -> List[Geometry]:
         var out = List[Geometry]()
         if self.boxes.__len__() == 0 or k <= 0:
             return out^
@@ -576,7 +576,7 @@ struct STRtree:
             r += 1
         return out^
 
-    fn _nearest_idx(self, _target: Geometry) -> Tuple[Int32, Float64]:
+    def _nearest_idx(self, _target: Geometry) -> Tuple[Int32, Float64]:
         if self.boxes.__len__() == 0 or self.tree_root == -1:
             return (-1, 1.7976931348623157e308)
 
@@ -652,7 +652,7 @@ struct STRtree:
 
         return (best_idx, best)
 
-    fn _nearest_idx_fallback(self, _target: Geometry) -> Tuple[Int32, Float64]:
+    def _nearest_idx_fallback(self, _target: Geometry) -> Tuple[Int32, Float64]:
         var best = 1.7976931348623157e308
         var best_idx: Int32 = -1
         var i = 0
@@ -668,7 +668,7 @@ struct STRtree:
             i += 1
         return (best_idx, best)
 
-    fn _nearest_idx(self, _target: Point) -> Tuple[Int32, Float64]:
+    def _nearest_idx(self, _target: Point) -> Tuple[Int32, Float64]:
         if self.boxes.__len__() == 0 or self.tree_root == -1:
             return (-1, 1.7976931348623157e308)
 
@@ -741,7 +741,7 @@ struct STRtree:
 
         return (best_idx, best)
 
-    fn _nearest_idx_fallback_point(self, _target: Point) -> Tuple[Int32, Float64]:
+    def _nearest_idx_fallback_point(self, _target: Point) -> Tuple[Int32, Float64]:
         var best = 1.7976931348623157e308
         var best_idx: Int32 = -1
         var i = 0
@@ -757,7 +757,7 @@ struct STRtree:
             i += 1
         return (best_idx, best)
 
-    fn _query_indices_bounds(
+    def _query_indices_bounds(
         self, tb: Tuple[Float64, Float64, Float64, Float64]
     ) -> List[Int32]:
         var out = List[Int32]()
@@ -800,17 +800,17 @@ struct STRtree:
 
         return out^
 
-    fn _query_indices(self, _target: Geometry) -> List[Int32]:
+    def _query_indices(self, _target: Geometry) -> List[Int32]:
         var tb = _target.bounds()
         return self._query_indices_bounds(tb)
 
-    fn query_items(self, _target: Geometry) -> List[Int32]:
+    def query_items(self, _target: Geometry) -> List[Int32]:
         return self._query_indices(_target)
 
-    fn query_items(self, _target: Geometry, predicate: String) -> List[Int32]:
+    def query_items(self, _target: Geometry, predicate: String) -> List[Int32]:
         return self._query_indices(_target, predicate)
 
-    fn _query_indices(self, _target: Geometry, predicate: String) -> List[Int32]:
+    def _query_indices(self, _target: Geometry, predicate: String) -> List[Int32]:
         var out = List[Int32]()
         if self.tree_root == -1:
             return out^
@@ -899,7 +899,7 @@ struct STRtree:
 
         return out^
 
-    fn _knn_indices(self, _target: Geometry, k: Int32) -> List[Int32]:
+    def _knn_indices(self, _target: Geometry, k: Int32) -> List[Int32]:
         var out = List[Int32]()
         if self.boxes.__len__() == 0 or k <= 0:
             return out.copy()
@@ -997,17 +997,17 @@ struct STRtree:
             out.append(gi)
         return out.copy()
 
-    fn nearest_item(self, _target: Geometry) -> Int32:
+    def nearest_item(self, _target: Geometry) -> Int32:
         var t = self._nearest_idx(_target)
         var idx = t[0]
         return idx
 
-    fn nearest_item(self, _target: Point) -> Int32:
+    def nearest_item(self, _target: Point) -> Int32:
         var t = self._nearest_idx(_target)
         var idx = t[0]
         return idx
 
-    fn query_bulk(self, _targets: List[Geometry]) -> List[Tuple[Int32, Int32]]:
+    def query_bulk(self, _targets: List[Geometry]) -> List[Tuple[Int32, Int32]]:
         var pairs = List[Tuple[Int32, Int32]]()
         var ti = 0
         while ti < _targets.__len__():
@@ -1019,7 +1019,7 @@ struct STRtree:
             ti += 1
         return pairs.copy()
 
-    fn query_bulk(self, _targets: List[Geometry], predicate: String) -> List[Tuple[Int32, Int32]]:
+    def query_bulk(self, _targets: List[Geometry], predicate: String) -> List[Tuple[Int32, Int32]]:
         var pairs = List[Tuple[Int32, Int32]]()
         var ti = 0
         while ti < _targets.__len__():
@@ -1031,7 +1031,7 @@ struct STRtree:
             ti += 1
         return pairs.copy()
 
-    fn nearest_all(self, _targets: List[Geometry]) -> List[Tuple[Int32, Int32]]:
+    def nearest_all(self, _targets: List[Geometry]) -> List[Tuple[Int32, Int32]]:
         var out = List[Tuple[Int32, Int32]]()
         var i = 0
         while i < _targets.__len__():
@@ -1041,7 +1041,7 @@ struct STRtree:
             i += 1
         return out.copy()
 
-    fn nearest_all(
+    def nearest_all(
         self,
         _targets: List[Geometry],
         max_distance: Float64,

@@ -3,18 +3,18 @@ from shapely.geometry import LineString, MultiLineString
 from shapely.constructive import buffer
 
 
-fn _coord_list_json(coords: List[Tuple[Float64, Float64]]) -> String:
+def _coord_list_json(coords: List[Tuple[Float64, Float64]]) -> String:
     var s = "["
     var i = 0
     while i < coords.__len__():
         if i != 0:
             s = s + ","
-        s = s + "[" + coords[i][0].__str__() + "," + coords[i][1].__str__() + "]"
+        s = s + "[" + String(coords[i][0]) + "," + String(coords[i][1]) + "]"
         i += 1
     return s + "]"
 
 
-fn _lines_json(lines: List[LineString]) -> String:
+def _lines_json(lines: List[LineString]) -> String:
     var s = "["
     var i = 0
     while i < lines.__len__():
@@ -25,7 +25,7 @@ fn _lines_json(lines: List[LineString]) -> String:
     return s + "]"
 
 
-fn _polygons_json(geom: Geometry) -> String:
+def _polygons_json(geom: Geometry) -> String:
     # polygons serialized as a list of shells
     var s = "["
     if geom.is_polygon():
@@ -42,7 +42,7 @@ fn _polygons_json(geom: Geometry) -> String:
     return s + "]"
 
 
-fn main():
+def main():
     var l1 = LineString([(0.0, 0.0), (2.0, 0.5), (4.0, 0.0)])
     var l2 = LineString([(0.0, 2.0), (1.0, 3.0), (2.0, 2.5), (4.0, 3.0)])
 

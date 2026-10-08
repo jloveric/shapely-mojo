@@ -1,4 +1,4 @@
-from python import Python, PythonObject
+from std.python import Python, PythonObject
 
 from shapely._geometry import Geometry
 from shapely.creation import box
@@ -8,7 +8,7 @@ from shapely.geometry import Point, LinearRing, Polygon
 from shapely.strtree import STRtree
 
 
-fn _mk_skew_poly(x0: Float64, y0: Float64, w: Float64, h: Float64) -> Polygon:
+def _mk_skew_poly(x0: Float64, y0: Float64, w: Float64, h: Float64) -> Polygon:
     var sx = 0.35 * w
     var pts = List[Tuple[Float64, Float64]]()
     pts.append((x0, y0))
@@ -19,19 +19,19 @@ fn _mk_skew_poly(x0: Float64, y0: Float64, w: Float64, h: Float64) -> Polygon:
     return Polygon(LinearRing(pts))
 
 
-fn _now_ns() raises -> Int64:
+def _now_ns() raises -> Int64:
     var time: PythonObject = Python.import_module("time")
     var t: PythonObject = time.perf_counter_ns()
     var ns = Python.py_long_as_ssize_t(t)
     return Int64(ns)
 
 
-fn _print_result(name: String, iters: Int, elapsed_ns: Int64):
+def _print_result(name: String, iters: Int, elapsed_ns: Int64):
     var secs = Float64(elapsed_ns) / 1.0e9
-    print("RESULT\t" + name + "\t" + secs.__str__() + "\t" + iters.__str__())
+    print("RESULT\t" + name + "\t" + String(secs) + "\t" + String(iters))
 
 
-fn main() raises:
+def main() raises:
     # buffer
     var p = box(0.0, 0.0, 2.0, 2.0)
     var warm = 200

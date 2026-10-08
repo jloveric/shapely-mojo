@@ -1,4 +1,4 @@
-from shapely._geometry import Geometry
+from shapely._geometry import Geometry, geometry_from_member
 from shapely.geometry import Point, LineString, MultiLineString, MultiPoint, Polygon, GeometryCollection, LinearRing
 from shapely.linear import line_merge as _line_merge, shared_paths as _shared_paths
 from shapely.set_operations import unary_union as _unary_union, intersection as _poly_intersection
@@ -11,7 +11,7 @@ struct PolygonizeSeg(Copyable, Movable):
     var bx: Float64
     var by: Float64
 
-    fn __init__(out self, ax: Float64, ay: Float64, bx: Float64, by: Float64):
+    def __init__(out self, ax: Float64, ay: Float64, bx: Float64, by: Float64):
         self.ax = ax
         self.ay = ay
         self.bx = bx
@@ -26,7 +26,7 @@ struct PolygonizeDEdge(Copyable, Movable):
     var alive: Bool
     var used: Bool
 
-    fn __init__(out self, src: Int32, dst: Int32, dx: Float64, dy: Float64, alive: Bool, used: Bool):
+    def __init__(out self, src: Int32, dst: Int32, dx: Float64, dy: Float64, alive: Bool, used: Bool):
         self.src = src
         self.dst = dst
         self.dx = dx
@@ -35,13 +35,13 @@ struct PolygonizeDEdge(Copyable, Movable):
         self.used = used
 
 
-fn _absf(x: Float64) -> Float64:
+def _absf(x: Float64) -> Float64:
     if x < 0.0:
         return -x
     return x
 
 
-fn _polygonize_get_vid(x: Float64, y: Float64, mut verts: List[Tuple[Float64, Float64]], eps: Float64 = 1e-12) -> Int32:
+def _polygonize_get_vid(x: Float64, y: Float64, mut verts: List[Tuple[Float64, Float64]], eps: Float64 = 1e-12) -> Int32:
     var k = 0
     while k < verts.__len__():
         var v = verts[k]
@@ -52,12 +52,12 @@ fn _polygonize_get_vid(x: Float64, y: Float64, mut verts: List[Tuple[Float64, Fl
     return Int32(verts.__len__() - 1)
 
 
-fn _polygonize_ensure_adj(mut adj: List[List[Int32]], vid: Int32):
+def _polygonize_ensure_adj(mut adj: List[List[Int32]], vid: Int32):
     while adj.__len__() <= Int(vid):
         adj.append(List[Int32]())
 
 
-fn _polygonize_add_unique_edge(
+def _polygonize_add_unique_edge(
     a: Int32,
     b: Int32,
     mut seen: List[Tuple[Int32, Int32]],
@@ -82,7 +82,7 @@ fn _polygonize_add_unique_edge(
         out_lines.append(LineString([(verts[u0][0], verts[u0][1]), (verts[u1][0], verts[u1][1])]))
 
 
-fn _polygonize_next_edge(ref adj: List[List[Int32]], ref edges: List[PolygonizeDEdge], at_vertex: Int32, bx: Float64, by: Float64) -> Int32:
+def _polygonize_next_edge(ref adj: List[List[Int32]], ref edges: List[PolygonizeDEdge], at_vertex: Int32, bx: Float64, by: Float64) -> Int32:
     if Int(at_vertex) >= adj.__len__():
         return -1
     ref cand = adj[at_vertex]
@@ -139,11 +139,11 @@ fn _polygonize_next_edge(ref adj: List[List[Int32]], ref edges: List[PolygonizeD
     return best_idx_fallback
 
 
-fn linemerge(lines) -> Geometry:
+def linemerge(lines) -> Geometry:
     return _line_merge(lines)
 
 
-fn polygonize(lines) -> GeometryCollection:
+def polygonize(lines) -> GeometryCollection:
     # Collect all LineStrings from input
     var lns = List[LineString]()
     if lines.is_linestring():
@@ -154,7 +154,8 @@ fn polygonize(lines) -> GeometryCollection:
             lns.append(ln.copy())
     elif lines.is_geometrycollection():
         var gc = lines.as_geometrycollection()
-        for g in gc.geoms:
+        for p in gc.geoms:
+            var g = geometry_from_member(p)
             if g.is_linestring():
                 lns.append(g.as_linestring())
             elif g.is_multilinestring():
@@ -342,7 +343,7 @@ fn polygonize(lines) -> GeometryCollection:
     return GeometryCollection(polys)
 
 
-fn polygonize_full(lines: Geometry) -> Tuple[GeometryCollection, MultiLineString, MultiLineString, MultiLineString]:
+def polygonize_full(lines: Geometry) -> Tuple[GeometryCollection, MultiLineString, MultiLineString, MultiLineString]:
     # Collect all LineStrings from input
     var lns = List[LineString]()
     if lines.is_linestring():
@@ -353,7 +354,8 @@ fn polygonize_full(lines: Geometry) -> Tuple[GeometryCollection, MultiLineString
             lns.append(ln.copy())
     elif lines.is_geometrycollection():
         var gc = lines.as_geometrycollection()
-        for g in gc.geoms:
+        for p in gc.geoms:
+            var g = geometry_from_member(p)
             if g.is_linestring():
                 lns.append(g.as_linestring())
             elif g.is_multilinestring():
@@ -567,17 +569,17 @@ fn polygonize_full(lines: Geometry) -> Tuple[GeometryCollection, MultiLineString
     return (GeometryCollection(poly_geoms), MultiLineString(dangle_lines), MultiLineString(cut_lines), MultiLineString([]))
 
 
-fn unary_union(geoms: List[Geometry]) -> Geometry:
+def unary_union(geoms: List[Geometry]) -> Geometry:
     return _unary_union(geoms)
 
 
-fn clamp01(t: Float64) -> Float64:
+def clamp01(t: Float64) -> Float64:
     if t < 0.0: return 0.0
     if t > 1.0: return 1.0
     return t
 
 
-fn closest_on_seg(ax: Float64, ay: Float64, bx: Float64, by: Float64, px: Float64, py: Float64) -> Tuple[Float64, Float64, Float64]:
+def closest_on_seg(ax: Float64, ay: Float64, bx: Float64, by: Float64, px: Float64, py: Float64) -> Tuple[Float64, Float64, Float64]:
     var vx = bx - ax
     var vy = by - ay
     var vlen2 = vx * vx + vy * vy
@@ -592,11 +594,11 @@ fn closest_on_seg(ax: Float64, ay: Float64, bx: Float64, by: Float64, px: Float6
     return (cx, cy, dx * dx + dy * dy)
 
 
-fn nearest_points(a: Point, b: Point) -> Tuple[Point, Point]:
+def nearest_points(a: Point, b: Point) -> Tuple[Point, Point]:
     return (a, b)
 
 
-fn nearest_points(p: Point, ls: LineString) -> Tuple[Point, Point]:
+def nearest_points(p: Point, ls: LineString) -> Tuple[Point, Point]:
     var best = 1.7976931348623157e308
     var bx = p.x
     var by = p.y
@@ -611,12 +613,12 @@ fn nearest_points(p: Point, ls: LineString) -> Tuple[Point, Point]:
     return (Point(bx, by), p)
 
 
-fn nearest_points(ls: LineString, p: Point) -> Tuple[Point, Point]:
+def nearest_points(ls: LineString, p: Point) -> Tuple[Point, Point]:
     var (q, _p) = nearest_points(p, ls)
     return (q, p)
 
 
-fn nearest_points(l1: LineString, l2: LineString) -> Tuple[Point, Point]:
+def nearest_points(l1: LineString, l2: LineString) -> Tuple[Point, Point]:
     var best = 1.7976931348623157e308
     var p1 = Point(0.0, 0.0)
     var p2 = Point(0.0, 0.0)
@@ -645,7 +647,7 @@ fn nearest_points(l1: LineString, l2: LineString) -> Tuple[Point, Point]:
     return (p1, p2)
 
 
-fn clip_by_rect(poly: Polygon, xmin: Float64, ymin: Float64, xmax: Float64, ymax: Float64) -> Geometry:
+def clip_by_rect(poly: Polygon, xmin: Float64, ymin: Float64, xmax: Float64, ymax: Float64) -> Geometry:
     # Build rectangle polygon and intersect using our polygon clipper
     var rect = Polygon(LinearRing([
         (xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax), (xmin, ymin)
@@ -653,12 +655,12 @@ fn clip_by_rect(poly: Polygon, xmin: Float64, ymin: Float64, xmax: Float64, ymax
     return _poly_intersection(poly, rect)
 
 
-fn clip_by_rect(ls: LineString, xmin: Float64, ymin: Float64, xmax: Float64, ymax: Float64) -> Geometry:
+def clip_by_rect(ls: LineString, xmin: Float64, ymin: Float64, xmax: Float64, ymax: Float64) -> Geometry:
     # Liang–Barsky per segment; build one or more clipped polylines
     if ls.coords.__len__() < 2:
         return LineString(ls.coords)
 
-    fn clip_seg(x0: Float64, y0: Float64, x1: Float64, y1: Float64,
+    def clip_seg(x0: Float64, y0: Float64, x1: Float64, y1: Float64,
                 xmin: Float64, ymin: Float64, xmax: Float64, ymax: Float64,
                ) -> Tuple[Bool, Float64, Float64, Float64, Float64]:
         var t0 = 0.0
@@ -666,7 +668,7 @@ fn clip_by_rect(ls: LineString, xmin: Float64, ymin: Float64, xmax: Float64, yma
         var dx = x1 - x0
         var dy = y1 - y0
         
-        fn upd(p: Float64, q: Float64, mut t0: Float64, mut t1: Float64) -> Bool:
+        def upd(p: Float64, q: Float64, mut t0: Float64, mut t1: Float64) -> Bool:
             if p == 0.0:
                 if q < 0.0: return False
                 return True
@@ -727,8 +729,8 @@ fn clip_by_rect(ls: LineString, xmin: Float64, ymin: Float64, xmax: Float64, yma
     return MultiLineString(mls)
 
 
-fn orient(poly: Polygon, sign: Float64 = 1.0) -> Polygon:
-    fn signed_area(coords: List[Tuple[Float64, Float64]]) -> Float64:
+def orient(poly: Polygon, sign: Float64 = 1.0) -> Polygon:
+    def signed_area(coords: List[Tuple[Float64, Float64]]) -> Float64:
         if coords.__len__() < 2: return 0.0
         var s = 0.0
         for i in range(0, coords.__len__() - 1):
@@ -737,7 +739,7 @@ fn orient(poly: Polygon, sign: Float64 = 1.0) -> Polygon:
             s += a[0] * b[1] - a[1] * b[0]
         return 0.5 * s
 
-    fn ensure_orient(coords: List[Tuple[Float64, Float64]], want_positive: Bool) -> List[Tuple[Float64, Float64]]:
+    def ensure_orient(coords: List[Tuple[Float64, Float64]], want_positive: Bool) -> List[Tuple[Float64, Float64]]:
         var area = signed_area(coords)
         var is_positive = area > 0.0
         if want_positive == is_positive:
@@ -760,32 +762,32 @@ fn orient(poly: Polygon, sign: Float64 = 1.0) -> Polygon:
     return Polygon(new_shell, new_holes)
 
 
-fn orient(geom: Geometry, _sign: Float64 = 1.0) -> Geometry:
+def orient(geom: Geometry, _sign: Float64 = 1.0) -> Geometry:
     return geom
 
 
-fn orient(mpoly: MultiPolygon, sign: Float64 = 1.0) -> MultiPolygon:
+def orient(mpoly: MultiPolygon, sign: Float64 = 1.0) -> MultiPolygon:
     var new_polys = List[Polygon]()
     for p in mpoly.polys:
         new_polys.append(orient(p, sign))
     return MultiPolygon(new_polys)
 
 
-fn split(ls: LineString, pt: Point) -> GeometryCollection:
+def split(ls: LineString, pt: Point) -> GeometryCollection:
     # If point is not on the line, return original
     if ls.coords.size() < 2:
-        return GeometryCollection([ls])
+        return GeometryCollection([Geometry(ls.copy())])
     var on_any = False
     var idx = 0
     for i in range(0, ls.coords.size() - 1):
-        let a = ls.coords[i]
-        let b = ls.coords[i + 1]
+        var a = ls.coords[i]
+        var b = ls.coords[i + 1]
         if on_segment(a[0], a[1], b[0], b[1], pt.x, pt.y):
             on_any = True
             idx = i
             break
     if not on_any:
-        return GeometryCollection([ls])
+        return GeometryCollection([Geometry(ls.copy())])
     # build two parts
     var left = List[Tuple[Float64, Float64]]()
     var right = List[Tuple[Float64, Float64]]()
@@ -801,21 +803,21 @@ fn split(ls: LineString, pt: Point) -> GeometryCollection:
         right.append(ls.coords[i])
     var parts = List[Geometry]()
     if left.size() >= 2:
-        parts.append(LineString(left))
+        parts.append(Geometry(LineString(left)))
     if right.size() >= 2:
-        parts.append(LineString(right))
+        parts.append(Geometry(LineString(right)))
     if parts.size() == 0:
-        return GeometryCollection([ls])
+        return GeometryCollection([Geometry(ls.copy())])
     return GeometryCollection(parts)
 
 
-fn substring(geom: LineString, start_dist: Float64, end_dist: Float64, normalized: Bool = False) -> LineString:
+def substring(geom: LineString, start_dist: Float64, end_dist: Float64, normalized: Bool = False) -> LineString:
     if geom.coords.size() == 0:
         return LineString([])
     if geom.coords.size() == 1:
         return LineString([geom.coords[0]])
 
-    fn sqrt_f64(x: Float64) -> Float64:
+    def sqrt_f64(x: Float64) -> Float64:
         if x <= 0.0: return 0.0
         var r = x
         var i = 0
@@ -827,10 +829,10 @@ fn substring(geom: LineString, start_dist: Float64, end_dist: Float64, normalize
     # total length
     var total = 0.0
     for i in range(0, geom.coords.size() - 1):
-        let a = geom.coords[i]
-        let b = geom.coords[i + 1]
-        let dx = b[0] - a[0]
-        let dy = b[1] - a[1]
+        var a = geom.coords[i]
+        var b = geom.coords[i + 1]
+        var dx = b[0] - a[0]
+        var dy = b[1] - a[1]
         total += sqrt_f64(dx * dx + dy * dy)
     if total == 0.0:
         return LineString([geom.coords[0]])
@@ -851,7 +853,7 @@ fn substring(geom: LineString, start_dist: Float64, end_dist: Float64, normalize
 
     var reverse = False
     if s > e:
-        let tmp = s
+        var tmp = s
         s = e
         e = tmp
         reverse = True
@@ -861,15 +863,15 @@ fn substring(geom: LineString, start_dist: Float64, end_dist: Float64, normalize
     var out = List[Tuple[Float64, Float64]]()
     # find start point
     for i in range(0, geom.coords.size() - 1):
-        let a = geom.coords[i]
-        let b = geom.coords[i + 1]
-        let dx = b[0] - a[0]
-        let dy = b[1] - a[1]
-        let seg = sqrt_f64(dx * dx + dy * dy)
+        var a = geom.coords[i]
+        var b = geom.coords[i + 1]
+        var dx = b[0] - a[0]
+        var dy = b[1] - a[1]
+        var seg = sqrt_f64(dx * dx + dy * dy)
         if acc + seg >= s:
-            let t = if seg == 0.0 { 0.0 } else { (s - acc) / seg }
-            let sx = a[0] + t * dx
-            let sy = a[1] + t * dy
+            var t = if seg == 0.0 { 0.0 } else { (s - acc) / seg }
+            var sx = a[0] + t * dx
+            var sy = a[1] + t * dy
             out.append((sx, sy))
             # continue adding intermediate vertices until reaching end
             var here = acc + seg
@@ -879,19 +881,19 @@ fn substring(geom: LineString, start_dist: Float64, end_dist: Float64, normalize
             # add subsequent segments fully until overshoot
             var j = i + 1
             while j < geom.coords.size() - 1 and here < e:
-                let na = geom.coords[j]
-                let nb = geom.coords[j + 1]
-                let ndx = nb[0] - na[0]
-                let ndy = nb[1] - na[1]
-                let nseg = sqrt_f64(ndx * ndx + ndy * ndy)
+                var na = geom.coords[j]
+                var nb = geom.coords[j + 1]
+                var ndx = nb[0] - na[0]
+                var ndy = nb[1] - na[1]
+                var nseg = sqrt_f64(ndx * ndx + ndy * ndy)
                 if here + nseg <= e:
                     out.append((nb[0], nb[1]))
                     here += nseg
                     j += 1
                 else:
-                    let tt = if nseg == 0.0 { 0.0 } else { (e - here) / nseg }
-                    let ex = na[0] + tt * ndx
-                    let ey = na[1] + tt * ndy
+                    var tt = if nseg == 0.0 { 0.0 } else { (e - here) / nseg }
+                    var ex = na[0] + tt * ndx
+                    var ey = na[1] + tt * ndy
                     out.append((ex, ey))
                     here = e
                     break
@@ -915,36 +917,36 @@ fn substring(geom: LineString, start_dist: Float64, end_dist: Float64, normalize
     return LineString(out)
 
 
-fn shared_paths(a: LineString, b: LineString) -> GeometryCollection:
+def shared_paths(a: LineString, b: LineString) -> GeometryCollection:
     return _shared_paths(a, b)
 
 
-fn shortest_line(a: Point, b: Point) -> LineString:
+def shortest_line(a: Point, b: Point) -> LineString:
     return LineString([(a.x, a.y), (b.x, b.y)])
 
 
-fn shortest_line(p: Point, ls: LineString) -> LineString:
-    let (q, _p) = nearest_points(p, ls)
+def shortest_line(p: Point, ls: LineString) -> LineString:
+    var (q, _p) = nearest_points(p, ls)
     return LineString([(q.x, q.y), (p.x, p.y)])
 
 
-fn shortest_line(ls: LineString, p: Point) -> LineString:
-    let (q, _p) = nearest_points(ls, p)
+def shortest_line(ls: LineString, p: Point) -> LineString:
+    var (q, _p) = nearest_points(ls, p)
     return LineString([(q.x, q.y), (p.x, p.y)])
 
 
-fn shortest_line(l1: LineString, l2: LineString) -> LineString:
-    let (a, b) = nearest_points(l1, l2)
+def shortest_line(l1: LineString, l2: LineString) -> LineString:
+    var (a, b) = nearest_points(l1, l2)
     return LineString([(a.x, a.y), (b.x, b.y)])
 
 
-fn triangulate(_geom: Geometry, _tolerance: Float64 = 0.0, _edges: Bool = False) -> GeometryCollection:
-    return GeometryCollection([])
+def triangulate(_geom: Geometry, _tolerance: Float64 = 0.0, _edges: Bool = False) -> GeometryCollection:
+    return GeometryCollection()
 
 
-fn voronoi_diagram(_geom: Geometry, _envelope: Geometry = Geometry(), _tolerance: Float64 = 0.0, _edges: Bool = False) -> GeometryCollection:
-    return GeometryCollection([])
+def voronoi_diagram(_geom: Geometry, _envelope: Geometry = Geometry(), _tolerance: Float64 = 0.0, _edges: Bool = False) -> GeometryCollection:
+    return GeometryCollection()
 
 
-fn validate(_geom: Geometry) -> Bool:
+def validate(_geom: Geometry) -> Bool:
     return True

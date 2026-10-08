@@ -1,4 +1,4 @@
-from python import Python, PythonObject
+from std.python import Python, PythonObject
 
 from shapely._geometry import Geometry
 from shapely.geometry import Point, LinearRing, Polygon
@@ -6,12 +6,12 @@ from shapely.constructive import buffer, circle, JOIN_ROUND, JOIN_BEVEL, JOIN_MI
 from shapely.validation import make_valid
 
 
-fn _ensure_outputs_dir() raises:
+def _ensure_outputs_dir() raises:
     var os: PythonObject = Python.import_module("os")
     os.makedirs("outputs", exist_ok=True)
 
 
-fn _plot_coords(
+def _plot_coords(
     plt: PythonObject,
     coords: List[Tuple[Float64, Float64]],
     color: String,
@@ -35,7 +35,7 @@ fn _plot_coords(
     plt.plot(xs, ys, color=color, linewidth=lw, alpha=alpha)
 
 
-fn _plot_polygon(
+def _plot_polygon(
     plt: PythonObject,
     poly: Polygon,
     shell_color: String,
@@ -48,7 +48,7 @@ fn _plot_polygon(
         _plot_coords(plt, h.coords, hole_color, lw=lw, closed=True, alpha=alpha)
 
 
-fn _plot_geom(
+def _plot_geom(
     plt: PythonObject,
     geom: Geometry,
     shell_color: String,
@@ -64,7 +64,7 @@ fn _plot_geom(
             _plot_polygon(plt, p.copy(), shell_color, hole_color, lw=lw, alpha=alpha)
 
 
-fn _base_polygon_with_holes() -> Polygon:
+def _base_polygon_with_holes() -> Polygon:
     var s: Float64 = 2.0
     var hole_scale: Float64 = 1.5
 
@@ -110,7 +110,7 @@ fn _base_polygon_with_holes() -> Polygon:
     return Polygon(LinearRing(shell), holes)
 
 
-fn main() raises:
+def main() raises:
     _ensure_outputs_dir()
 
     var plt: PythonObject = Python.import_module("matplotlib.pyplot")
@@ -143,7 +143,7 @@ fn main() raises:
         while c < cols:
             var idx = r * cols + c + 1
             var ax = fig.add_subplot(rows, cols, idx)
-            ax.set_title("d=" + distances[r].__str__() + ", join=" + joins[c][0])
+            ax.set_title("d=" + String(distances[r]) + ", join=" + joins[c][0])
 
             var d = distances[r]
             var join_style = joins[c][1]

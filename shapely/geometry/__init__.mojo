@@ -1,7 +1,7 @@
-from shapely._geometry import Geometry
+from shapely._geometry import Geometry, GeometryCollectionMember, _geometry_to_member, geometry_from_member
 
 
-fn sqrt_f64(x: Float64) -> Float64:
+def sqrt_f64(x: Float64) -> Float64:
     if x <= 0.0:
         return 0.0
     var r = x
@@ -18,58 +18,58 @@ struct Point(Copyable, Movable):
     var has_z: Bool
     var z: Float64
 
-    fn __init__(out self, x: Float64, y: Float64):
+    def __init__(out self, x: Float64, y: Float64):
         self.x = x
         self.y = y
         self.has_z = False
         self.z = 0.0
 
-    fn with_z(self, z: Float64) -> Point:
+    def with_z(self, z: Float64) -> Point:
         var p = Point(self.x, self.y)
         p.has_z = True
         p.z = z
         return p
 
-    fn is_empty(self) -> Bool:
+    def is_empty(self) -> Bool:
         return False
 
-    fn to_wkt(self) -> String:
+    def to_wkt(self) -> String:
         if self.has_z:
             return (
                 "POINT Z ("
-                + self.x.__str__()
+                + String(self.x)
                 + " "
-                + self.y.__str__()
+                + String(self.y)
                 + " "
-                + self.z.__str__()
+                + String(self.z)
                 + ")"
             )
-        return "POINT (" + self.x.__str__() + " " + self.y.__str__() + ")"
+        return "POINT (" + String(self.x) + " " + String(self.y) + ")"
 
-    fn bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
+    def bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
         return (self.x, self.y, self.x, self.y)
 
 
 struct LineString(Copyable, Movable):
     var coords: List[Tuple[Float64, Float64]]
 
-    fn __init__(out self, coords: List[Tuple[Float64, Float64]]):
+    def __init__(out self, coords: List[Tuple[Float64, Float64]]):
         self.coords = coords.copy()
 
-    fn is_empty(self) -> Bool:
+    def is_empty(self) -> Bool:
         return self.coords.__len__() == 0
 
-    fn to_wkt(self) -> String:
+    def to_wkt(self) -> String:
         var s = "LINESTRING ("
         var first = True
         for c in self.coords:
             if not first:
                 s = s + ", "
             first = False
-            s = s + c[0].__str__() + " " + c[1].__str__()
+            s = s + String(c[0]) + " " + String(c[1])
         return s + ")"
 
-    fn bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
+    def bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
         if self.coords.__len__() == 0:
             return (0.0, 0.0, 0.0, 0.0)
         var minx = self.coords[0][0]
@@ -87,7 +87,7 @@ struct LineString(Copyable, Movable):
                 maxy = c[1]
         return (minx, miny, maxx, maxy)
 
-    fn length(self) -> Float64:
+    def length(self) -> Float64:
         if self.coords.__len__() <= 1:
             return 0.0
         var total = 0.0
@@ -103,23 +103,23 @@ struct LineString(Copyable, Movable):
 struct LinearRing(Copyable, Movable):
     var coords: List[Tuple[Float64, Float64]]
 
-    fn __init__(out self, coords: List[Tuple[Float64, Float64]]):
+    def __init__(out self, coords: List[Tuple[Float64, Float64]]):
         self.coords = coords.copy()
 
-    fn is_empty(self) -> Bool:
+    def is_empty(self) -> Bool:
         return self.coords.__len__() == 0
 
-    fn to_wkt(self) -> String:
+    def to_wkt(self) -> String:
         var s = "LINEARRING ("
         var first = True
         for c in self.coords:
             if not first:
                 s = s + ", "
             first = False
-            s = s + c[0].__str__() + " " + c[1].__str__()
+            s = s + String(c[0]) + " " + String(c[1])
         return s + ")"
 
-    fn bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
+    def bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
         if self.coords.__len__() == 0:
             return (0.0, 0.0, 0.0, 0.0)
         var minx = self.coords[0][0]
@@ -137,7 +137,7 @@ struct LinearRing(Copyable, Movable):
                 maxy = c[1]
         return (minx, miny, maxx, maxy)
 
-    fn length(self) -> Float64:
+    def length(self) -> Float64:
         if self.coords.__len__() <= 1:
             return 0.0
         var total = 0.0
@@ -154,7 +154,7 @@ struct Polygon(Copyable, Movable):
     var shell: LinearRing
     var holes: List[LinearRing]
 
-    fn __init__(
+    def __init__(
         out self,
         shell: LinearRing,
         holes: List[LinearRing] = List[LinearRing](),
@@ -162,10 +162,10 @@ struct Polygon(Copyable, Movable):
         self.shell = shell.copy()
         self.holes = holes.copy()
 
-    fn is_empty(self) -> Bool:
+    def is_empty(self) -> Bool:
         return self.shell.coords.__len__() == 0
 
-    fn to_wkt(self) -> String:
+    def to_wkt(self) -> String:
         var s = "POLYGON ("
         # shell
         s = s + "("
@@ -174,7 +174,7 @@ struct Polygon(Copyable, Movable):
             if not first:
                 s = s + ", "
             first = False
-            s = s + c[0].__str__() + " " + c[1].__str__()
+            s = s + String(c[0]) + " " + String(c[1])
         s = s + ")"
         # holes
         for h in self.holes:
@@ -184,11 +184,11 @@ struct Polygon(Copyable, Movable):
                 if not first_h:
                     s = s + ", "
                 first_h = False
-                s = s + c[0].__str__() + " " + c[1].__str__()
+                s = s + String(c[0]) + " " + String(c[1])
             s = s + ")"
         return s + ")"
 
-    fn bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
+    def bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
         if self.shell.coords.__len__() == 0:
             return (0.0, 0.0, 0.0, 0.0)
         var minx = self.shell.coords[0][0]
@@ -206,7 +206,7 @@ struct Polygon(Copyable, Movable):
                 maxy = c[1]
         return (minx, miny, maxx, maxy)
 
-    fn area(self) -> Float64:
+    def area(self) -> Float64:
         if self.shell.coords.__len__() < 3:
             return 0.0
         var shell_sum = 0.0
@@ -228,33 +228,43 @@ struct Polygon(Copyable, Movable):
             return -total
         return total
 
-    fn length(self) -> Float64:
+    def length(self) -> Float64:
         var s = self.shell.length()
         for h in self.holes:
             s += h.length()
         return s
 
 
-struct GeometryCollection(Copyable, Movable):
-    var geoms: List[Geometry]
+struct GeometryCollection(Copyable, Movable, Deinitable):
+    var geoms: List[GeometryCollectionMember]
 
-    fn __init__(out self, geoms: List[Geometry]):
-        self.geoms = geoms.copy()
+    def __init__(out self, geoms: List[Geometry]):
+        self.geoms = List[GeometryCollectionMember]()
+        for g in geoms:
+            self.geoms.append(_geometry_to_member(g))
 
-    fn is_empty(self) -> Bool:
+    def __init__(out self, polys: List[Polygon]):
+        self.geoms = List[GeometryCollectionMember]()
+        for p in polys:
+            self.geoms.append(GeometryCollectionMember(p.copy()))
+
+    def __init__(out self):
+        self.geoms = List[GeometryCollectionMember]()
+
+    def is_empty(self) -> Bool:
         return self.geoms.__len__() == 0
 
-    fn to_wkt(self) -> String:
+    def to_wkt(self) -> String:
         var s = "GEOMETRYCOLLECTION ("
         var first = True
-        for g in self.geoms:
+        for p in self.geoms:
             if not first:
                 s = s + ", "
             first = False
-            s = s + g.to_wkt()
+            s = s + geometry_from_member(p).to_wkt()
         return s + ")"
 
-    fn bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
+    def bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
         if self.geoms.__len__() == 0:
             return (0.0, 0.0, 0.0, 0.0)
         var inited = False
@@ -262,8 +272,8 @@ struct GeometryCollection(Copyable, Movable):
         var miny = 0.0
         var maxx = 0.0
         var maxy = 0.0
-        for g in self.geoms:
-            var b = g.bounds()
+        for p in self.geoms:
+            var b = geometry_from_member(p).bounds()
             if not inited:
                 minx = b[0]
                 miny = b[1]
@@ -285,23 +295,23 @@ struct GeometryCollection(Copyable, Movable):
 struct MultiPoint(Copyable, Movable):
     var points: List[Point]
 
-    fn __init__(out self, points: List[Point]):
+    def __init__(out self, points: List[Point]):
         self.points = points.copy()
 
-    fn is_empty(self) -> Bool:
+    def is_empty(self) -> Bool:
         return self.points.__len__() == 0
 
-    fn to_wkt(self) -> String:
+    def to_wkt(self) -> String:
         var s = "MULTIPOINT ("
         var first = True
         for p in self.points:
             if not first:
                 s = s + ", "
             first = False
-            s = s + p.x.__str__() + " " + p.y.__str__()
+            s = s + String(p.x) + " " + String(p.y)
         return s + ")"
 
-    fn bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
+    def bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
         if self.points.__len__() == 0:
             return (0.0, 0.0, 0.0, 0.0)
         var minx = self.points[0].x
@@ -323,13 +333,13 @@ struct MultiPoint(Copyable, Movable):
 struct MultiLineString(Copyable, Movable):
     var lines: List[LineString]
 
-    fn __init__(out self, lines: List[LineString]):
+    def __init__(out self, lines: List[LineString]):
         self.lines = lines.copy()
 
-    fn is_empty(self) -> Bool:
+    def is_empty(self) -> Bool:
         return self.lines.__len__() == 0
 
-    fn to_wkt(self) -> String:
+    def to_wkt(self) -> String:
         var s = "MULTILINESTRING ("
         var first = True
         for ln in self.lines:
@@ -342,11 +352,11 @@ struct MultiLineString(Copyable, Movable):
                 if not firstc:
                     s = s + ", "
                 firstc = False
-                s = s + c[0].__str__() + " " + c[1].__str__()
+                s = s + String(c[0]) + " " + String(c[1])
             s = s + ")"
         return s + ")"
 
-    fn bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
+    def bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
         if self.lines.__len__() == 0:
             return (0.0, 0.0, 0.0, 0.0)
         var inited = False
@@ -374,7 +384,7 @@ struct MultiLineString(Copyable, Movable):
         return (minx, miny, maxx, maxy)
 
 
-    fn length(self) -> Float64:
+    def length(self) -> Float64:
         var s = 0.0
         for ln in self.lines:
             s += ln.length()
@@ -384,13 +394,13 @@ struct MultiLineString(Copyable, Movable):
 struct MultiPolygon(Copyable, Movable):
     var polys: List[Polygon]
 
-    fn __init__(out self, polys: List[Polygon]):
+    def __init__(out self, polys: List[Polygon]):
         self.polys = polys.copy()
 
-    fn is_empty(self) -> Bool:
+    def is_empty(self) -> Bool:
         return self.polys.__len__() == 0
 
-    fn to_wkt(self) -> String:
+    def to_wkt(self) -> String:
         var s = "MULTIPOLYGON ("
         var firstp = True
         for poly in self.polys:
@@ -403,7 +413,7 @@ struct MultiPolygon(Copyable, Movable):
                 if not firstc:
                     s = s + ", "
                 firstc = False
-                s = s + c[0].__str__() + " " + c[1].__str__()
+                s = s + String(c[0]) + " " + String(c[1])
             s = s + ")"
             for h in poly.holes:
                 s = s + ", ("
@@ -412,12 +422,12 @@ struct MultiPolygon(Copyable, Movable):
                     if not firsth:
                         s = s + ", "
                     firsth = False
-                    s = s + c[0].__str__() + " " + c[1].__str__()
+                    s = s + String(c[0]) + " " + String(c[1])
                 s = s + ")"
             s = s + ")"
         return s + ")"
 
-    fn bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
+    def bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
         if self.polys.__len__() == 0:
             return (0.0, 0.0, 0.0, 0.0)
         var inited = False
@@ -445,14 +455,14 @@ struct MultiPolygon(Copyable, Movable):
         return (minx, miny, maxx, maxy)
 
 
-    fn area(self) -> Float64:
+    def area(self) -> Float64:
         var s = 0.0
         for p in self.polys:
             s += p.area()
         return s
 
 
-    fn length(self) -> Float64:
+    def length(self) -> Float64:
         var s = 0.0
         for p in self.polys:
             s += p.length()

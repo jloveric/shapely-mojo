@@ -1,4 +1,4 @@
-from python import Python, PythonObject
+from std.python import Python, PythonObject
 
 from shapely._geometry import Geometry
 from shapely.geometry import LineString, MultiLineString
@@ -6,12 +6,12 @@ from shapely.constructive import buffer
 from shapely.set_operations import unary_union
 
 
-fn _ensure_outputs_dir() raises:
+def _ensure_outputs_dir() raises:
     var os: PythonObject = Python.import_module("os")
     os.makedirs("outputs", exist_ok=True)
 
 
-fn _plot_coords(
+def _plot_coords(
     ax: PythonObject,
     coords: List[Tuple[Float64, Float64]],
     color: String,
@@ -35,7 +35,7 @@ fn _plot_coords(
     ax.plot(xs, ys, color=color, linewidth=lw, alpha=alpha)
 
 
-fn _plot_geom(ax: PythonObject, geom: Geometry, color: String, lw: Int = 2, alpha: Float64 = 0.9) raises:
+def _plot_geom(ax: PythonObject, geom: Geometry, color: String, lw: Int = 2, alpha: Float64 = 0.9) raises:
     if geom.is_polygon():
         var p = geom.as_polygon()
         _plot_coords(ax, p.shell.coords, color, lw=lw, closed=True, alpha=alpha)
@@ -49,7 +49,7 @@ fn _plot_geom(ax: PythonObject, geom: Geometry, color: String, lw: Int = 2, alph
                 _plot_coords(ax, h.coords, color, lw=lw, closed=True, alpha=alpha)
 
 
-fn _tictactoe_board(size: Float64 = 9.0) -> MultiLineString:
+def _tictactoe_board(size: Float64 = 9.0) -> MultiLineString:
     # Build a 3x3 tic-tac-toe grid as 4 lines.
     # Coordinates are in [0, size] with lines at 1/3 and 2/3.
     var a = size / 3.0
@@ -63,7 +63,7 @@ fn _tictactoe_board(size: Float64 = 9.0) -> MultiLineString:
     return MultiLineString([l0.copy(), l1.copy(), l2.copy(), l3.copy()])
 
 
-fn main() raises:
+def main() raises:
     _ensure_outputs_dir()
 
     var board = _tictactoe_board(9.0)
@@ -90,7 +90,7 @@ fn main() raises:
 
     ax.set_aspect("equal", adjustable="box")
     ax.grid(True, linewidth=0.4, alpha=0.4)
-    ax.set_title("tictactoe buffer d=" + d.__str__() + " area=" + merged.area().__str__())
+    ax.set_title("tictactoe buffer d=" + String(d) + " area=" + String(merged.area()))
 
     fig.tight_layout()
     fig.savefig("outputs/tictactoe_buffer.png", dpi=160)

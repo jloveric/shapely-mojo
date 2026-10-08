@@ -1,4 +1,4 @@
-from python import Python, PythonObject
+from std.python import Python, PythonObject
 
 from shapely._geometry import Geometry
 from shapely.geometry import Point, MultiPoint, LinearRing, Polygon
@@ -6,7 +6,7 @@ from shapely.constructive import convex_hull, circle
 from shapely.algorithms import point_in_polygon
 
 
-fn _ensure_outputs_dir() raises:
+def _ensure_outputs_dir() raises:
     var os: PythonObject = Python.import_module("os")
     os.makedirs("outputs", exist_ok=True)
 
@@ -14,10 +14,10 @@ fn _ensure_outputs_dir() raises:
 struct Rand(Copyable, Movable):
     var state: UInt64
 
-    fn __init__(out self, seed: UInt64):
+    def __init__(out self, seed: UInt64):
         self.state = seed
 
-    fn next_u64(mut self) -> UInt64:
+    def next_u64(mut self) -> UInt64:
         # xorshift64*
         var x = self.state
         x ^= x >> 12
@@ -26,23 +26,23 @@ struct Rand(Copyable, Movable):
         self.state = x
         return x * 0x2545F4914F6CDD1D
 
-    fn next_f64(mut self) -> Float64:
+    def next_f64(mut self) -> Float64:
         # [0, 1)
         var x = self.next_u64()
         var mant = Float64(Int64(x & 0x000F_FFFF_FFFF_FFFF))
         return mant / Float64(Int64(0x0010_0000_0000_0000))
 
-    fn uniform(mut self, lo: Float64, hi: Float64) -> Float64:
+    def uniform(mut self, lo: Float64, hi: Float64) -> Float64:
         return lo + (hi - lo) * self.next_f64()
 
-    fn randint(mut self, lo: Int32, hi: Int32) -> Int32:
+    def randint(mut self, lo: Int32, hi: Int32) -> Int32:
         # inclusive
         var span = UInt64(Int64(hi - lo + 1))
         var v = self.next_u64() % span
         return lo + Int32(Int64(v))
 
 
-fn _plot_coords(
+def _plot_coords(
     plt: PythonObject,
     coords: List[Tuple[Float64, Float64]],
     color: String,
@@ -66,13 +66,13 @@ fn _plot_coords(
     plt.plot(xs, ys, color=color, linewidth=lw, alpha=alpha)
 
 
-fn _plot_polygon(plt: PythonObject, poly: Polygon) raises:
+def _plot_polygon(plt: PythonObject, poly: Polygon) raises:
     _plot_coords(plt, poly.shell.coords, "tab:blue", lw=2, closed=True, alpha=0.9)
     for h in poly.holes:
         _plot_coords(plt, h.coords, "tab:red", lw=2, closed=True, alpha=0.9)
 
 
-fn _make_random_hull(mut rng: Rand, npts: Int32) -> Polygon:
+def _make_random_hull(mut rng: Rand, npts: Int32) -> Polygon:
     var pts = List[Point]()
     var i: Int32 = 0
     while i < npts:
@@ -95,13 +95,13 @@ fn _make_random_hull(mut rng: Rand, npts: Int32) -> Polygon:
     return Polygon(LinearRing(shell))
 
 
-fn _try_place_hole(
+def _try_place_hole(
     mut rng: Rand,
     shell_poly: Polygon,
     mut centers: List[Tuple[Float64, Float64, Float64]],
     r: Float64,
     quad_segs: Int32,
-) -> (LinearRing, Bool):
+) -> Tuple[LinearRing, Bool]:
     var b = shell_poly.bounds()
     var minx = b[0]
     var miny = b[1]
@@ -133,7 +133,7 @@ fn _try_place_hole(
         # Ensure sampled circle points are inside the shell
         var disk = circle(cx, cy, r, quad_segs)
         var ring = disk.as_polygon().shell.copy()
-        var j: Int32 = 0
+        var j = 0
         while j < ring.coords.__len__() - 1:
             var p = ring.coords[j]
             if point_in_polygon(Point(p[0], p[1]), shell_poly) == 0:
@@ -150,7 +150,7 @@ fn _try_place_hole(
     return (LinearRing(List[Tuple[Float64, Float64]]()), False)
 
 
-fn _make_random_polygon_with_holes(mut rng: Rand) -> Polygon:
+def _make_random_polygon_with_holes(mut rng: Rand) -> Polygon:
     var shell_poly = _make_random_hull(rng, 25)
 
     var holes = List[LinearRing]()
@@ -171,7 +171,7 @@ fn _make_random_polygon_with_holes(mut rng: Rand) -> Polygon:
     return Polygon(shell_poly.shell.copy(), holes)
 
 
-fn main() raises:
+def main() raises:
     _ensure_outputs_dir()
 
     var plt: PythonObject = Python.import_module("matplotlib.pyplot")

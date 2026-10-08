@@ -1,4 +1,4 @@
-from utils.variant import Variant
+from std.utils.variant import Variant
 from shapely.geometry import (
     Point,
     LineString,
@@ -10,7 +10,16 @@ from shapely.geometry import (
 )
 
 
-alias GeometryPayload = Variant[
+comptime GeometryCollectionMember = Variant[
+    Point,
+    LineString,
+    Polygon,
+    MultiPoint,
+    MultiLineString,
+    MultiPolygon,
+]
+
+comptime GeometryPayload = Variant[
     Point,
     LineString,
     Polygon,
@@ -21,73 +30,105 @@ alias GeometryPayload = Variant[
 ]
 
 
-struct Geometry(Copyable, Movable):
+def geometry_from_member(member: GeometryCollectionMember) -> Geometry:
+    if member.isa[Point]():
+        return Geometry(member[Point].copy())
+    if member.isa[LineString]():
+        return Geometry(member[LineString].copy())
+    if member.isa[Polygon]():
+        return Geometry(member[Polygon].copy())
+    if member.isa[MultiPoint]():
+        return Geometry(member[MultiPoint].copy())
+    if member.isa[MultiLineString]():
+        return Geometry(member[MultiLineString].copy())
+    if member.isa[MultiPolygon]():
+        return Geometry(member[MultiPolygon].copy())
+    return Geometry(Point(0.0, 0.0))
+
+
+def _geometry_to_member(g: Geometry) -> GeometryCollectionMember:
+    if g.is_point():
+        return GeometryCollectionMember(g.as_point().copy())
+    if g.is_linestring():
+        return GeometryCollectionMember(g.as_linestring().copy())
+    if g.is_polygon():
+        return GeometryCollectionMember(g.as_polygon().copy())
+    if g.is_multipoint():
+        return GeometryCollectionMember(g.as_multipoint().copy())
+    if g.is_multilinestring():
+        return GeometryCollectionMember(g.as_multilinestring().copy())
+    if g.is_multipolygon():
+        return GeometryCollectionMember(g.as_multipolygon().copy())
+    return GeometryCollectionMember(Point(0.0, 0.0))
+
+
+struct Geometry(Copyable, Movable, Deinitable):
     var payload: GeometryPayload
 
-    fn __init__(out self, var value: Point):
+    def __init__(out self, var value: Point):
         self.payload = GeometryPayload(value.copy())
 
-    fn __init__(out self, var value: LineString):
+    def __init__(out self, var value: LineString):
         self.payload = GeometryPayload(value.copy())
 
-    fn __init__(out self, var value: Polygon):
+    def __init__(out self, var value: Polygon):
         self.payload = GeometryPayload(value.copy())
 
-    fn __init__(out self, var value: GeometryCollection):
+    def __init__(out self, var value: GeometryCollection):
         self.payload = GeometryPayload(value.copy())
 
-    fn __init__(out self, var value: MultiPoint):
+    def __init__(out self, var value: MultiPoint):
         self.payload = GeometryPayload(value.copy())
 
-    fn __init__(out self, var value: MultiLineString):
+    def __init__(out self, var value: MultiLineString):
         self.payload = GeometryPayload(value.copy())
 
-    fn __init__(out self, var value: MultiPolygon):
+    def __init__(out self, var value: MultiPolygon):
         self.payload = GeometryPayload(value.copy())
 
-    fn is_point(self) -> Bool:
+    def is_point(self) -> Bool:
         return self.payload.isa[Point]()
 
-    fn is_linestring(self) -> Bool:
+    def is_linestring(self) -> Bool:
         return self.payload.isa[LineString]()
 
-    fn is_polygon(self) -> Bool:
+    def is_polygon(self) -> Bool:
         return self.payload.isa[Polygon]()
 
-    fn is_multipoint(self) -> Bool:
+    def is_multipoint(self) -> Bool:
         return self.payload.isa[MultiPoint]()
 
-    fn is_geometrycollection(self) -> Bool:
+    def is_geometrycollection(self) -> Bool:
         return self.payload.isa[GeometryCollection]()
 
-    fn is_multilinestring(self) -> Bool:
+    def is_multilinestring(self) -> Bool:
         return self.payload.isa[MultiLineString]()
 
-    fn is_multipolygon(self) -> Bool:
+    def is_multipolygon(self) -> Bool:
         return self.payload.isa[MultiPolygon]()
 
-    fn as_point(self) -> Point:
+    def as_point(self) -> Point:
         return self.payload[Point].copy()
 
-    fn as_linestring(self) -> LineString:
+    def as_linestring(self) -> LineString:
         return self.payload[LineString].copy()
 
-    fn as_polygon(self) -> Polygon:
+    def as_polygon(self) -> Polygon:
         return self.payload[Polygon].copy()
 
-    fn as_geometrycollection(self) -> GeometryCollection:
+    def as_geometrycollection(self) -> GeometryCollection:
         return self.payload[GeometryCollection].copy()
 
-    fn as_multipoint(self) -> MultiPoint:
+    def as_multipoint(self) -> MultiPoint:
         return self.payload[MultiPoint].copy()
 
-    fn as_multilinestring(self) -> MultiLineString:
+    def as_multilinestring(self) -> MultiLineString:
         return self.payload[MultiLineString].copy()
 
-    fn as_multipolygon(self) -> MultiPolygon:
+    def as_multipolygon(self) -> MultiPolygon:
         return self.payload[MultiPolygon].copy()
 
-    fn is_empty(self) -> Bool:
+    def is_empty(self) -> Bool:
         if self.payload.isa[Point]():
             return self.payload[Point].is_empty()
         if self.payload.isa[LineString]():
@@ -104,7 +145,7 @@ struct Geometry(Copyable, Movable):
             return self.payload[MultiPolygon].is_empty()
         return False
 
-    fn to_wkt(self) -> String:
+    def to_wkt(self) -> String:
         if self.payload.isa[Point]():
             return self.payload[Point].to_wkt()
         if self.payload.isa[LineString]():
@@ -121,7 +162,7 @@ struct Geometry(Copyable, Movable):
             return self.payload[MultiPolygon].to_wkt()
         return "GEOMETRYCOLLECTION EMPTY"
 
-    fn bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
+    def bounds(self) -> Tuple[Float64, Float64, Float64, Float64]:
         if self.payload.isa[Point]():
             return self.payload[Point].bounds()
         if self.payload.isa[LineString]():
@@ -138,7 +179,7 @@ struct Geometry(Copyable, Movable):
             return self.payload[MultiPolygon].bounds()
         return (0.0, 0.0, 0.0, 0.0)
 
-    fn area(self) -> Float64:
+    def area(self) -> Float64:
         if self.payload.isa[Polygon]():
             return self.payload[Polygon].area()
         if self.payload.isa[MultiPolygon]():
@@ -146,12 +187,12 @@ struct Geometry(Copyable, Movable):
         if self.payload.isa[GeometryCollection]():
             var gc = self.payload[GeometryCollection].copy()
             var s = 0.0
-            for g in gc.geoms:
-                s += g.area()
+            for p in gc.geoms:
+                s += geometry_from_member(p).area()
             return s
         return 0.0
 
-    fn length(self) -> Float64:
+    def length(self) -> Float64:
         if self.payload.isa[LineString]():
             return self.payload[LineString].length()
         if self.payload.isa[MultiLineString]():
@@ -163,28 +204,28 @@ struct Geometry(Copyable, Movable):
         if self.payload.isa[GeometryCollection]():
             var gc = self.payload[GeometryCollection].copy()
             var s = 0.0
-            for g in gc.geoms:
-                s += g.length()
+            for p in gc.geoms:
+                s += geometry_from_member(p).length()
             return s
         return 0.0
 
 
 struct GEOSException:
-    fn __init__(out self):
+    def __init__(out self):
         return
 
 
-fn geos_version() -> Tuple[Int32, Int32, Int32]:
+def geos_version() -> Tuple[Int32, Int32, Int32]:
     return (0, 0, 0)
 
 
-fn geos_version_string() -> String:
+def geos_version_string() -> String:
     return "0.0.0"
 
 
-fn geos_capi_version() -> Tuple[Int32, Int32, Int32]:
+def geos_capi_version() -> Tuple[Int32, Int32, Int32]:
     return (0, 0, 0)
 
 
-fn geos_capi_version_string() -> String:
+def geos_capi_version_string() -> String:
     return "0.0.0"

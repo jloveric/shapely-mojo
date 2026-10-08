@@ -4,15 +4,15 @@ from shapely.algorithms import orientation, point_in_polygon
 from shapely.overlay import overlay_union, overlay_difference, overlay_intersection, overlay_xor
 
 
-fn _empty_polygon() -> Polygon:
+def _empty_polygon() -> Polygon:
     return Polygon(LinearRing(List[Tuple[Float64, Float64]]()))
 
 
-fn _is_empty_polygon(p: Polygon) -> Bool:
+def _is_empty_polygon(p: Polygon) -> Bool:
     return p.shell.coords.__len__() < 3
 
 
-fn union(a: Geometry, b: Geometry) -> Geometry:
+def union(a: Geometry, b: Geometry) -> Geometry:
     if a.is_polygon() and b.is_polygon():
         return union(a.as_polygon(), b.as_polygon())
     if a.is_multipolygon() and b.is_polygon():
@@ -23,14 +23,14 @@ fn union(a: Geometry, b: Geometry) -> Geometry:
         return union(a.as_multipolygon(), b.as_multipolygon())
     return Geometry(_empty_polygon())
 
-fn union(a: Geometry, b: Polygon) -> Geometry:
+def union(a: Geometry, b: Polygon) -> Geometry:
     if a.is_polygon():
         return union(a.as_polygon(), b)
     if a.is_multipolygon():
         return union(a.as_multipolygon(), b)
     return Geometry(_empty_polygon())
 
-fn union(a: Polygon, b: Geometry) -> Geometry:
+def union(a: Polygon, b: Geometry) -> Geometry:
     if b.is_polygon():
         return union(a, b.as_polygon())
     if b.is_multipolygon():
@@ -38,11 +38,11 @@ fn union(a: Polygon, b: Geometry) -> Geometry:
     return Geometry(_empty_polygon())
 
 
-fn union(a: Polygon, b: Polygon) -> Geometry:
+def union(a: Polygon, b: Polygon) -> Geometry:
     return overlay_union(a, b)
 
 
-fn union(mp: MultiPolygon, p: Polygon) -> Geometry:
+def union(mp: MultiPolygon, p: Polygon) -> Geometry:
     if mp.polys.__len__() == 0:
         return Geometry(p.copy())
     var g: Geometry = overlay_union(mp.polys[0], p)
@@ -53,11 +53,11 @@ fn union(mp: MultiPolygon, p: Polygon) -> Geometry:
     return g.copy()
 
 
-fn union(p: Polygon, mp: MultiPolygon) -> Geometry:
+def union(p: Polygon, mp: MultiPolygon) -> Geometry:
     return union(mp, p)
 
 
-fn union(a: MultiPolygon, b: MultiPolygon) -> Geometry:
+def union(a: MultiPolygon, b: MultiPolygon) -> Geometry:
     if a.polys.__len__() == 0:
         if b.polys.__len__() == 0:
             return Geometry(MultiPolygon([]))
@@ -79,11 +79,11 @@ fn union(a: MultiPolygon, b: MultiPolygon) -> Geometry:
     return g.copy()
 
 
-fn _cross(ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
+def _cross(ax: Float64, ay: Float64, bx: Float64, by: Float64) -> Float64:
     return ax * by - ay * bx
 
 
-fn _intersect_point(s1: Tuple[Float64, Float64], s2: Tuple[Float64, Float64], c1: Tuple[Float64, Float64], c2: Tuple[Float64, Float64]) -> (Tuple[Float64, Float64], Bool):
+def _intersect_point(s1: Tuple[Float64, Float64], s2: Tuple[Float64, Float64], c1: Tuple[Float64, Float64], c2: Tuple[Float64, Float64]) -> (Tuple[Float64, Float64], Bool):
     var r_x = s2[0] - s1[0]
     var r_y = s2[1] - s1[1]
     var s_x = c2[0] - c1[0]
@@ -95,12 +95,12 @@ fn _intersect_point(s1: Tuple[Float64, Float64], s2: Tuple[Float64, Float64], c1
     return ((s1[0] + t * r_x, s1[1] + t * r_y), True)
 
 
-fn _is_inside(p: Tuple[Float64, Float64], a: Tuple[Float64, Float64], b: Tuple[Float64, Float64]) -> Bool:
+def _is_inside(p: Tuple[Float64, Float64], a: Tuple[Float64, Float64], b: Tuple[Float64, Float64]) -> Bool:
     # left-of test: inside if p is to left of a->b
     return orientation(a[0], a[1], b[0], b[1], p[0], p[1]) >= 0
 
 
-fn _suth_hodg(subject: List[Tuple[Float64, Float64]], clip: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Float64]]:
+def _suth_hodg(subject: List[Tuple[Float64, Float64]], clip: List[Tuple[Float64, Float64]]) -> List[Tuple[Float64, Float64]]:
     var output = subject
     if output.__len__() == 0:
         return output
@@ -128,11 +128,11 @@ fn _suth_hodg(subject: List[Tuple[Float64, Float64]], clip: List[Tuple[Float64, 
     return output
 
 
-fn intersection(a: Polygon, b: Polygon) -> Geometry:
+def intersection(a: Polygon, b: Polygon) -> Geometry:
     return overlay_intersection(a, b)
 
 
-fn intersection(a: Geometry, b: Geometry) -> Geometry:
+def intersection(a: Geometry, b: Geometry) -> Geometry:
     if a.is_polygon() and b.is_polygon():
         return intersection(a.as_polygon(), b.as_polygon())
     if a.is_multipolygon() and b.is_polygon():
@@ -141,22 +141,22 @@ fn intersection(a: Geometry, b: Geometry) -> Geometry:
         return intersection(a, b.as_multipolygon().polys[0]) if b.as_multipolygon().polys.__len__() > 0 else Geometry(_empty_polygon())
     return Geometry(_empty_polygon())
 
-fn intersection(a: Geometry, b: Polygon) -> Geometry:
+def intersection(a: Geometry, b: Polygon) -> Geometry:
     if a.is_polygon():
         return intersection(a.as_polygon(), b)
     return Geometry(_empty_polygon())
 
-fn intersection(a: Polygon, b: Geometry) -> Geometry:
+def intersection(a: Polygon, b: Geometry) -> Geometry:
     if b.is_polygon():
         return intersection(a, b.as_polygon())
     return Geometry(_empty_polygon())
 
 
-fn difference(a: Polygon, b: Polygon) -> Geometry:
+def difference(a: Polygon, b: Polygon) -> Geometry:
     return overlay_difference(a, b)
 
 
-fn difference(a: Geometry, b: Geometry) -> Geometry:
+def difference(a: Geometry, b: Geometry) -> Geometry:
     if a.is_polygon() and b.is_polygon():
         return difference(a.as_polygon(), b.as_polygon())
     if a.is_multipolygon() and b.is_polygon():
@@ -167,14 +167,14 @@ fn difference(a: Geometry, b: Geometry) -> Geometry:
         return difference(a.as_multipolygon(), b.as_multipolygon())
     return Geometry(_empty_polygon())
 
-fn difference(a: Geometry, b: Polygon) -> Geometry:
+def difference(a: Geometry, b: Polygon) -> Geometry:
     if a.is_polygon():
         return difference(a.as_polygon(), b)
     if a.is_multipolygon():
         return difference(a.as_multipolygon(), b)
     return Geometry(_empty_polygon())
 
-fn difference(a: Polygon, b: Geometry) -> Geometry:
+def difference(a: Polygon, b: Geometry) -> Geometry:
     if b.is_polygon():
         return difference(a, b.as_polygon())
     if b.is_multipolygon():
@@ -182,7 +182,7 @@ fn difference(a: Polygon, b: Geometry) -> Geometry:
     return Geometry(_empty_polygon())
 
 
-fn symmetric_difference(a: Geometry, b: Geometry) -> Geometry:
+def symmetric_difference(a: Geometry, b: Geometry) -> Geometry:
     if a.is_polygon() and b.is_polygon():
         return symmetric_difference(a.as_polygon(), b.as_polygon())
     if a.is_multipolygon() and b.is_polygon():
@@ -193,14 +193,14 @@ fn symmetric_difference(a: Geometry, b: Geometry) -> Geometry:
         return symmetric_difference(a.as_multipolygon(), b.as_multipolygon())
     return Geometry(_empty_polygon())
 
-fn symmetric_difference(a: Geometry, b: Polygon) -> Geometry:
+def symmetric_difference(a: Geometry, b: Polygon) -> Geometry:
     if a.is_polygon():
         return symmetric_difference(a.as_polygon(), b)
     if a.is_multipolygon():
         return symmetric_difference(a.as_multipolygon(), b)
     return Geometry(_empty_polygon())
 
-fn symmetric_difference(a: Polygon, b: Geometry) -> Geometry:
+def symmetric_difference(a: Polygon, b: Geometry) -> Geometry:
     if b.is_polygon():
         return symmetric_difference(a, b.as_polygon())
     if b.is_multipolygon():
@@ -208,7 +208,7 @@ fn symmetric_difference(a: Polygon, b: Geometry) -> Geometry:
     return Geometry(_empty_polygon())
 
 
-fn unary_union(geoms: List[Geometry]) -> Geometry:
+def unary_union(geoms: List[Geometry]) -> Geometry:
     if geoms.__len__() == 0:
         return Geometry(_empty_polygon())
     var acc: Geometry = geoms[0].copy()
@@ -219,11 +219,11 @@ fn unary_union(geoms: List[Geometry]) -> Geometry:
     return acc.copy()
 
 
-fn symmetric_difference(a: Polygon, b: Polygon) -> Geometry:
+def symmetric_difference(a: Polygon, b: Polygon) -> Geometry:
     return overlay_xor(a, b)
 
 
-fn difference(a: MultiPolygon, p: Polygon) -> Geometry:
+def difference(a: MultiPolygon, p: Polygon) -> Geometry:
     var parts = List[Polygon]()
     for q in a.polys:
         var dg = difference(q, p)
@@ -239,7 +239,7 @@ fn difference(a: MultiPolygon, p: Polygon) -> Geometry:
     return Geometry(MultiPolygon(parts))
 
 
-fn difference(p: Polygon, b: MultiPolygon) -> Geometry:
+def difference(p: Polygon, b: MultiPolygon) -> Geometry:
     var acc = p.copy()
     for q in b.polys:
         var dg = difference(acc, q)
@@ -252,7 +252,7 @@ fn difference(p: Polygon, b: MultiPolygon) -> Geometry:
     return Geometry(acc.copy())
 
 
-fn difference(a: MultiPolygon, b: MultiPolygon) -> Geometry:
+def difference(a: MultiPolygon, b: MultiPolygon) -> Geometry:
     var acc = List[Polygon]()
     for p in a.polys:
         for q in b.polys:
@@ -269,7 +269,7 @@ fn difference(a: MultiPolygon, b: MultiPolygon) -> Geometry:
     return Geometry(MultiPolygon(acc))
 
 
-fn symmetric_difference(a: MultiPolygon, p: Polygon) -> Geometry:
+def symmetric_difference(a: MultiPolygon, p: Polygon) -> Geometry:
     # fold XOR across all polygons: ((p1 XOR p) XOR p2) ...
     if a.polys.__len__() == 0:
         return Geometry(p.copy())
@@ -281,11 +281,11 @@ fn symmetric_difference(a: MultiPolygon, p: Polygon) -> Geometry:
     return acc.copy()
 
 
-fn symmetric_difference(p: Polygon, a: MultiPolygon) -> Geometry:
+def symmetric_difference(p: Polygon, a: MultiPolygon) -> Geometry:
     return symmetric_difference(a, p)
 
 
-fn symmetric_difference(a: MultiPolygon, b: MultiPolygon) -> Geometry:
+def symmetric_difference(a: MultiPolygon, b: MultiPolygon) -> Geometry:
     if a.polys.__len__() == 0:
         if b.polys.__len__() == 0:
             return Geometry(_empty_polygon())

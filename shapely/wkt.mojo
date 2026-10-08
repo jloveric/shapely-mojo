@@ -2,154 +2,181 @@ from shapely._geometry import Geometry
 from shapely.geometry import Point, LinearRing, LineString, Polygon, MultiPoint, MultiLineString, MultiPolygon
 
 
-fn to_wkt(geom: Geometry) -> String:
+def to_wkt(geom: Geometry) -> String:
     return geom.to_wkt()
 
 
-fn _parse_point(body: String) -> Point:
+def _wkt_strip(s: String) -> String:
+    return String(s.strip())
+
+
+def _wkt_slice(s: String, start: Int, end: Int) -> String:
+    return String(s[byte=start:end])
+
+
+def _starts_with(s: String, prefix: String) -> Bool:
+    var n = prefix.byte_length()
+    if n > s.byte_length():
+        return False
+    return _wkt_slice(s, 0, n) == prefix
+
+
+def _ends_with(s: String, suffix: String) -> Bool:
+    var n = suffix.byte_length()
+    if n > s.byte_length():
+        return False
+    return _wkt_slice(s, s.byte_length() - n, s.byte_length()) == suffix
+
+
+def _parse_float(slice: StringSlice) raises -> Float64:
+    return Float64(String(slice))
+
+
+def _parse_point(body: String) raises -> Point:
     # expects "x y" or "x y z"; only use x y
-    let parts = body.split(" ")
-    if parts.size() < 2:
+    var parts = body.split(" ")
+    if len(parts) < 2:
         return Point(0.0, 0.0)
-    return Point(parts[0].to_float64(), parts[1].to_float64())
+    return Point(_parse_float(parts[0]), _parse_float(parts[1]))
 
 
-fn _parse_ring(body: String) -> LinearRing:
+def _parse_ring(body: String) raises -> LinearRing:
     # expects "x y, x y, ..."
     var coords = List[Tuple[Float64, Float64]]()
     for seg in body.split(","):
-        let trimmed = seg.strip()
-        let xy = trimmed.split(" ")
-        if xy.size() >= 2:
-            coords.append((xy[0].to_float64(), xy[1].to_float64()))
+        var trimmed = seg.strip()
+        var xy = trimmed.split(" ")
+        if len(xy) >= 2:
+            coords.append((_parse_float(xy[0]), _parse_float(xy[1])))
     return LinearRing(coords)
 
 
-fn from_wkt(wkt: String) -> Geometry:
-    let s = wkt.strip()
-    if s.starts_with("POINT"):
-        let l = s.find("(")
-        let r = s.rfind(")")
+def from_wkt(wkt: String) raises -> Geometry:
+    var s = _wkt_strip(wkt)
+    if _starts_with(s, "POINT"):
+        var l = s.find("(")
+        var r = s.rfind(")")
         if l >= 0 and r > l:
-            let body = s.slice(l + 1, r).strip()
-            return _parse_point(body)
-    if s.starts_with("LINEARRING"):
-        let l = s.find("(")
-        let r = s.rfind(")")
+            var body = _wkt_strip(_wkt_slice(s, l + 1, r))
+            return Geometry(_parse_point(body))
+    if _starts_with(s, "LINEARRING"):
+        var l = s.find("(")
+        var r = s.rfind(")")
         if l >= 0 and r > l:
-            let body = s.slice(l + 1, r).strip()
-            return _parse_ring(body)
-    if s.starts_with("LINESTRING"):
-        let l = s.find("(")
-        let r = s.rfind(")")
+            var body = _wkt_strip(_wkt_slice(s, l + 1, r))
+            var ring = _parse_ring(body)
+            return Geometry(LineString(ring.coords.copy()))
+    if _starts_with(s, "LINESTRING"):
+        var l = s.find("(")
+        var r = s.rfind(")")
         if l >= 0 and r > l:
-            let body = s.slice(l + 1, r).strip()
+            var body = _wkt_strip(_wkt_slice(s, l + 1, r))
             var coords = List[Tuple[Float64, Float64]]()
             for seg in body.split(","):
-                let xy = seg.strip().split(" ")
-                if xy.size() >= 2:
-                    coords.append((xy[0].to_float64(), xy[1].to_float64()))
-            return LineString(coords)
-    if s.starts_with("MULTILINESTRING"):
-        let l = s.find("(")
-        let r = s.rfind(")")
+                var xy = seg.strip().split(" ")
+                if len(xy) >= 2:
+                    coords.append((_parse_float(xy[0]), _parse_float(xy[1])))
+            return Geometry(LineString(coords))
+    if _starts_with(s, "MULTILINESTRING"):
+        var l = s.find("(")
+        var r = s.rfind(")")
         if l >= 0 and r > l:
-            let inner = s.slice(l + 1, r).strip()
-            let grouped = inner.replace("), (", ")|("
+            var inner = _wkt_strip(_wkt_slice(s, l + 1, r))
+            var grouped = inner.replace("), (", ")|("
                 ).replace("),(", ")|("
                 ).replace("( (", "(("
                 ).replace(" )", ")")
             var lines = List[LineString]()
             for g in grouped.split("|"):
-                let gg = g.strip()
+                var gg = _wkt_strip(String(g))
                 var ring_body = gg
-                if gg.starts_with("(") and gg.ends_with(")"):
-                    ring_body = gg.slice(1, gg.size() - 1)
+                if _starts_with(gg, "(") and _ends_with(gg, ")"):
+                    ring_body = _wkt_slice(gg, 1, gg.byte_length() - 1)
                 var coords = List[Tuple[Float64, Float64]]()
                 for seg in ring_body.split(","):
-                    let xy = seg.strip().split(" ")
-                    if xy.size() >= 2:
-                        coords.append((xy[0].to_float64(), xy[1].to_float64()))
+                    var xy = seg.strip().split(" ")
+                    if len(xy) >= 2:
+                        coords.append((_parse_float(xy[0]), _parse_float(xy[1])))
                 lines.append(LineString(coords))
-            return MultiLineString(lines)
-    if s.starts_with("MULTIPOINT"):
-        let l = s.find("(")
-        let r = s.rfind(")")
+            return Geometry(MultiLineString(lines))
+    if _starts_with(s, "MULTIPOINT"):
+        var l = s.find("(")
+        var r = s.rfind(")")
         if l >= 0 and r > l:
-            let body = s.slice(l + 1, r).strip()
+            var body = _wkt_strip(_wkt_slice(s, l + 1, r))
             var pts = List[Point]()
             if body.find("(") >= 0:
                 for chunk in body.split(")"):
-                    let inner = chunk.replace("(", "").replace(",", " ").strip()
-                    if inner.size() == 0: continue
-                    let xy = inner.split(" ")
-                    if xy.size() >= 2:
-                        pts.append(Point(xy[0].to_float64(), xy[1].to_float64()))
+                    var inner = chunk.replace("(", "").replace(",", " ").strip()
+                    if String(inner).byte_length() == 0: continue
+                    var xy = inner.split(" ")
+                    if len(xy) >= 2:
+                        pts.append(Point(_parse_float(xy[0]), _parse_float(xy[1])))
             else:
                 for seg in body.split(","):
-                    let xy = seg.strip().split(" ")
-                    if xy.size() >= 2:
-                        pts.append(Point(xy[0].to_float64(), xy[1].to_float64()))
-            return MultiPoint(pts)
-    if s.starts_with("POLYGON"):
-        let l = s.find("(")
-        let r = s.rfind(")")
+                    var xy = seg.strip().split(" ")
+                    if len(xy) >= 2:
+                        pts.append(Point(_parse_float(xy[0]), _parse_float(xy[1])))
+            return Geometry(MultiPoint(pts))
+    if _starts_with(s, "POLYGON"):
+        var l = s.find("(")
+        var r = s.rfind(")")
         if l >= 0 and r > l:
-            let inner = s.slice(l + 1, r).strip()
+            var inner = _wkt_strip(_wkt_slice(s, l + 1, r))
             # split rings by '), (' patterns
-            let grouped = inner.replace("), (", ")|("
+            var grouped = inner.replace("), (", ")|("
                 ).replace("),(", ")|("
                 ).strip()
             var rings = List[LinearRing]()
             for g in grouped.split("|"):
-                let gg = g.strip()
+                var gg = _wkt_strip(String(g))
                 var ring_body = gg
-                if gg.starts_with("(") and gg.ends_with(")"):
-                    ring_body = gg.slice(1, gg.size() - 1)
+                if _starts_with(gg, "(") and _ends_with(gg, ")"):
+                    ring_body = _wkt_slice(gg, 1, gg.byte_length() - 1)
                 rings.append(_parse_ring(ring_body))
-            if rings.size() == 0:
-                return Polygon(LinearRing(List[Tuple[Float64, Float64]]()))
-            let shell = rings[0]
+            if len(rings) == 0:
+                return Geometry(Polygon(LinearRing(List[Tuple[Float64, Float64]]())))
+            var shell = rings[0].copy()
             var holes = List[LinearRing]()
             var i = 1
-            while i < rings.size():
-                holes.append(rings[i])
+            while i < len(rings):
+                holes.append(rings[i].copy())
                 i += 1
-            return Polygon(shell, holes)
-    if s.starts_with("MULTIPOLYGON"):
-        let l = s.find("(")
-        let r = s.rfind(")")
+            return Geometry(Polygon(shell, holes))
+    if _starts_with(s, "MULTIPOLYGON"):
+        var l = s.find("(")
+        var r = s.rfind(")")
         if l >= 0 and r > l:
-            let inner = s.slice(l + 1, r).strip()
+            var inner = _wkt_strip(_wkt_slice(s, l + 1, r))
             # split polygons by ')), ((' boundaries
-            let grouped = inner.replace(")), ((", "))|(("
+            var grouped = inner.replace(")), ((", "))|(("
                 ).replace(")),((", "))|(("
                 ).strip()
             var polys = List[Polygon]()
             for pg in grouped.split("|"):
-                let pgs = pg.strip()
+                var pgs = _wkt_strip(String(pg))
                 var body = pgs
-                if pgs.starts_with("((") and pgs.ends_with("))"):
-                    body = pgs.slice(1, pgs.size() - 1)  # remove one paren from each side -> '(...) , (...)'
+                if _starts_with(pgs, "((") and _ends_with(pgs, "))"):
+                    body = _wkt_slice(pgs, 1, pgs.byte_length() - 1)
                 # Now body contains '(ring),(ring),...'
-                let rings_grouped = body.replace("), (", ")|("
+                var rings_grouped = body.replace("), (", ")|("
                     ).replace("),(", ")|("
                     ).strip()
                 var rings = List[LinearRing]()
                 for g in rings_grouped.split("|"):
-                    let gg = g.strip()
+                    var gg = _wkt_strip(String(g))
                     var ring_body = gg
-                    if gg.starts_with("(") and gg.ends_with(")"):
-                        ring_body = gg.slice(1, gg.size() - 1)
+                    if _starts_with(gg, "(") and _ends_with(gg, ")"):
+                        ring_body = _wkt_slice(gg, 1, gg.byte_length() - 1)
                     rings.append(_parse_ring(ring_body))
-                if rings.size() > 0:
-                    let shell = rings[0]
+                if len(rings) > 0:
+                    var shell = rings[0].copy()
                     var holes = List[LinearRing]()
                     var i = 1
-                    while i < rings.size():
-                        holes.append(rings[i])
+                    while i < len(rings):
+                        holes.append(rings[i].copy())
                         i += 1
                     polys.append(Polygon(shell, holes))
-            return MultiPolygon(polys)
+            return Geometry(MultiPolygon(polys))
     # default fallback
-    return Polygon(LinearRing(List[Tuple[Float64, Float64]]()))
+    return Geometry(Polygon(LinearRing(List[Tuple[Float64, Float64]]())))

@@ -16,7 +16,7 @@ struct DEdge(Copyable, Movable):
     var include: Bool
     var used: Bool
 
-    fn __init__(
+    def __init__(
         out self,
         src: Int32,
         dst: Int32,
@@ -33,13 +33,13 @@ struct DEdge(Copyable, Movable):
         self.used = used
 
 
-fn abs_f64(x: Float64) -> Float64:
+def abs_f64(x: Float64) -> Float64:
     if x < 0.0:
         return -x
     return x
 
 
-fn sqrt_f64(x: Float64) -> Float64:
+def sqrt_f64(x: Float64) -> Float64:
     if x <= 0.0:
         return 0.0
     var r = x
@@ -50,7 +50,7 @@ fn sqrt_f64(x: Float64) -> Float64:
     return r
 
 
-fn get_vid(
+def get_vid(
     x: Float64,
     y: Float64,
     mut verts: List[Tuple[Float64, Float64]],
@@ -74,7 +74,7 @@ struct Segment(Copyable, Movable):
     var owner: Int32
     var ts: List[Float64]
 
-    fn __init__(
+    def __init__(
         out self,
         ax: Float64,
         ay: Float64,
@@ -90,7 +90,7 @@ struct Segment(Copyable, Movable):
         self.ts = [0.0, 1.0]
 
 
-fn add_ring_segments(r: LinearRing, owner: Int32, mut segs: List[Segment]):
+def add_ring_segments(r: LinearRing, owner: Int32, mut segs: List[Segment]):
     if r.coords.__len__() < 2:
         return
     var i = 0
@@ -101,12 +101,12 @@ fn add_ring_segments(r: LinearRing, owner: Int32, mut segs: List[Segment]):
         i += 1
 
 
-fn ensure_adj(mut adj: List[List[Int32]], vid: Int32):
+def ensure_adj(mut adj: List[List[Int32]], vid: Int32):
     while adj.__len__() <= Int(vid):
         adj.append(List[Int32]())
 
 
-fn emit_edge(
+def emit_edge(
     ax: Float64,
     ay: Float64,
     bx: Float64,
@@ -176,11 +176,11 @@ fn emit_edge(
     adj[s_id].append(e_idx)
 
 
-fn make_point(x: Float64, y: Float64) -> Point:
+def make_point(x: Float64, y: Float64) -> Point:
     return Point(x, y)
 
 
-fn compute_intersections(segs: List[Segment]) -> List[List[Float64]]:
+def compute_intersections(segs: List[Segment]) -> List[List[Float64]]:
     var adds = List[List[Float64]]()
     var idx = 0
     while idx < segs.__len__():
@@ -210,7 +210,7 @@ fn compute_intersections(segs: List[Segment]) -> List[List[Float64]]:
     return adds.copy()
 
 
-fn build_edges(
+def build_edges(
     a: Polygon, b: Polygon, op: Int32
 ) -> Tuple[
     List[Tuple[Float64, Float64]],
@@ -286,7 +286,7 @@ fn build_edges(
     return (verts.copy(), edges.copy(), used.copy(), adj.copy())
 
 
-fn next_edge(
+def next_edge(
     adj: List[List[Int32]],
     edges: List[DEdge],
     used: List[Bool],
@@ -328,7 +328,7 @@ fn next_edge(
     return best_idx
 
 
-fn build_rings(
+def build_rings(
     verts: List[Tuple[Float64, Float64]],
     edges: List[DEdge],
     mut used: List[Bool],
@@ -376,7 +376,7 @@ fn build_rings(
     return rings.copy()
 
 
-fn assemble_polygons(
+def assemble_polygons(
     rings: List[List[Tuple[Float64, Float64]]]
 ) -> MultiPolygon:
     if rings.__len__() == 0:
@@ -437,7 +437,7 @@ fn assemble_polygons(
     return MultiPolygon(polys)
 
 
-fn overlay_intersection(a: Polygon, b: Polygon) -> Geometry:
+def overlay_intersection(a: Polygon, b: Polygon) -> Geometry:
     var tmp0 = build_edges(a, b, 0)
     var verts = tmp0[0].copy()
     var edges = tmp0[1].copy()
@@ -448,7 +448,7 @@ fn overlay_intersection(a: Polygon, b: Polygon) -> Geometry:
     return Geometry(assemble_polygons(rings))
 
 
-fn overlay_union(a: Polygon, b: Polygon) -> Geometry:
+def overlay_union(a: Polygon, b: Polygon) -> Geometry:
     var tmp1 = build_edges(a, b, 1)
     var verts = tmp1[0].copy()
     var edges = tmp1[1].copy()
@@ -459,7 +459,7 @@ fn overlay_union(a: Polygon, b: Polygon) -> Geometry:
     return Geometry(assemble_polygons(rings))
 
 
-fn overlay_difference(a: Polygon, b: Polygon) -> Geometry:
+def overlay_difference(a: Polygon, b: Polygon) -> Geometry:
     var tmp2 = build_edges(a, b, 2)
     var verts = tmp2[0].copy()
     var edges = tmp2[1].copy()
@@ -470,7 +470,7 @@ fn overlay_difference(a: Polygon, b: Polygon) -> Geometry:
     return Geometry(assemble_polygons(rings))
 
 
-fn overlay_xor(a: Polygon, b: Polygon) -> Geometry:
+def overlay_xor(a: Polygon, b: Polygon) -> Geometry:
     var tmp3 = build_edges(a, b, 3)
     var verts = tmp3[0].copy()
     var edges = tmp3[1].copy()
