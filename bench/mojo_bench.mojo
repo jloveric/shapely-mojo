@@ -1,4 +1,4 @@
-from std.python import Python, PythonObject
+from std.time import perf_counter_ns
 
 from shapely._geometry import Geometry
 from shapely.creation import box
@@ -19,11 +19,8 @@ def _mk_skew_poly(x0: Float64, y0: Float64, w: Float64, h: Float64) -> Polygon:
     return Polygon(LinearRing(pts))
 
 
-def _now_ns() raises -> Int64:
-    var time: PythonObject = Python.import_module("time")
-    var t: PythonObject = time.perf_counter_ns()
-    var ns = Python.py_long_as_ssize_t(t)
-    return Int64(ns)
+def _now_ns() -> Int64:
+    return Int64(perf_counter_ns())
 
 
 def _print_result(name: String, iters: Int, elapsed_ns: Int64):
@@ -31,7 +28,7 @@ def _print_result(name: String, iters: Int, elapsed_ns: Int64):
     print("RESULT\t" + name + "\t" + String(secs) + "\t" + String(iters))
 
 
-def main() raises:
+def main():
     # buffer
     var p = box(0.0, 0.0, 2.0, 2.0)
     var warm = 200
